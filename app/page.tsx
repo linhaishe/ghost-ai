@@ -1,12 +1,5 @@
-import { Button } from "@/components/ui/button";
+import { EditorShell } from "@/components/editor/editor-shell";
 
 export default function Home() {
-  return (
-    <>
-      <div className="flex justify-center">
-        ghost Alerytryr
-      </div>
-      <Button>test</Button>
-    </>
-  );
+  return <EditorShell />;
 }

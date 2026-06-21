@@ -4,15 +4,16 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 01 (Design System) — complete
+- Feature 02 (Editor Chrome) — complete
 
 ## Current Goal
 
-- Design system foundation is implemented and ready for the next feature unit.
+- Editor chrome foundation is implemented and ready for the next feature unit.
 
 ## Completed
 
 - Feature 01 (21/06/26): Design System — shadcn/ui installed and configured for Tailwind v4, dark-only theme tokens restored in `app/globals.css`, Button/Card/Dialog/Input/Tabs/Textarea/ScrollArea components added to `components/ui/`, `lucide-react` installed, and `lib/utils.ts` `cn()` helper added. `npm run lint` and `npx tsc --noEmit` pass.
+- Feature 02 (21/06/26): Editor Chrome — editor navbar added with sidebar toggle state icons, floating project sidebar shell added with shadcn Tabs and empty states, and reusable editor dialog content pattern added for future title/description/footer actions. `npm run lint` and `npx tsc --noEmit` pass.
 
 ## In Progress
 
@@ -33,9 +34,19 @@ Update this file whenever the current phase, active feature, or implementation s
 - The app is dark-only: project CSS variables in `app/globals.css` are the source of truth, and shadcn theme variables map onto those tokens.
 - The root `<html>` element includes the `dark` class so shadcn dark variants are active by default.
 - Icons use `lucide-react`.
+- Editor chrome components live in `components/editor/` and stay separate from generated shadcn primitives.
+- Project sidebar is a fixed floating overlay, so opening it does not affect editor canvas layout.
+- `app/page.tsx` renders `EditorShell`, which owns the sidebar open state and wires the navbar toggle to the project sidebar.
+- Editor shell uses full viewport sizing (`h-dvh`, `w-full`, `min-h-0`) so the navbar and canvas adapt to screen dimensions.
+- Editor dialog styling is captured as a reusable wrapper around shadcn Dialog primitives; actual dialogs are deferred until future specs.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/02-editor.md`.
+- Added editor chrome components: `components/editor/editor-navbar.tsx`, `components/editor/project-sidebar.tsx`, and `components/editor/editor-dialog.tsx`.
+- Added `components/editor/editor-shell.tsx` and mounted it from `app/page.tsx` so the navbar and project sidebar are visible in the app.
+- Fixed editor layout sizing so navbar spans the screen and canvas fills the remaining viewport area.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes.
 - Read `context/feature-specs/01-design-system.md` and implemented it exactly within the design-system scope.
 - Initialized shadcn/ui with the Nova/Radix preset and Tailwind v4 CSS-variable configuration.
 - Added required shadcn primitives: Button, Card, Dialog, Input, Tabs, Textarea, and ScrollArea.
