@@ -1,15 +1,19 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
+
+import { afterAuthPath, clerkAppearance, signInPath, signUpPath } from "@/lib/clerk-appearance";
+
 import "./globals.css";
 
-const geistSans = Geist({
+const geistSans = localFont({
+  src: "./fonts/geist-latin.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/geist-mono-latin.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
@@ -23,11 +27,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+    <ClerkProvider
+      appearance={clerkAppearance}
+      signInFallbackRedirectUrl={afterAuthPath}
+      signInForceRedirectUrl={afterAuthPath}
+      signInUrl={signInPath}
+      signUpFallbackRedirectUrl={afterAuthPath}
+      signUpForceRedirectUrl={afterAuthPath}
+      signUpUrl={signUpPath}
     >
-      <body className="min-h-full w-full">{children}</body>
-    </html>
+      <html
+        lang="en"
+        className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      >
+        <body className="min-h-full w-full">{children}</body>
+      </html>
+    </ClerkProvider>
   );
 }

@@ -4,16 +4,17 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 02 (Editor Chrome) — complete
+- Feature 03 (Authentication) — complete
 
 ## Current Goal
 
-- Editor chrome foundation is implemented and ready for the next feature unit.
+- Authentication foundation is implemented and ready for the next feature unit.
 
 ## Completed
 
 - Feature 01 (21/06/26): Design System — shadcn/ui installed and configured for Tailwind v4, dark-only theme tokens restored in `app/globals.css`, Button/Card/Dialog/Input/Tabs/Textarea/ScrollArea components added to `components/ui/`, `lucide-react` installed, and `lib/utils.ts` `cn()` helper added. `npm run lint` and `npx tsc --noEmit` pass.
 - Feature 02 (21/06/26): Editor Chrome — editor navbar added with sidebar toggle state icons, floating project sidebar shell added with shadcn Tabs and empty states, and reusable editor dialog content pattern added for future title/description/footer actions. `npm run lint` and `npx tsc --noEmit` pass.
+- Feature 03 (21/06/26): Authentication — ClerkProvider wraps the root layout with the dark Clerk theme, sign-in/sign-up pages are implemented, `proxy.ts` protects all non-auth routes by default, `/` redirects by auth state, `/editor` hosts the editor shell, and the editor navbar includes Clerk's `UserButton`. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -25,7 +26,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Open Questions
 
-- Production build currently fails because `next/font/google` cannot fetch Geist and Geist Mono from Google Fonts in this environment. Decide whether to keep remote Google font loading or switch to local/self-hosted fonts later.
+- None currently.
 
 ## Architecture Decisions
 
@@ -39,9 +40,20 @@ Update this file whenever the current phase, active feature, or implementation s
 - `app/page.tsx` renders `EditorShell`, which owns the sidebar open state and wires the navbar toggle to the project sidebar.
 - Editor shell uses full viewport sizing (`h-dvh`, `w-full`, `min-h-0`) so the navbar and canvas adapt to screen dimensions.
 - Editor dialog styling is captured as a reusable wrapper around shadcn Dialog primitives; actual dialogs are deferred until future specs.
+- Geist Sans and Geist Mono are self-hosted from `app/fonts/` via `next/font/local` so production builds do not depend on Google Fonts network access.
+- Clerk uses `proxy.ts` at the project root for route protection; only configured sign-in and sign-up paths are public.
+- Clerk appearance is centralized in `lib/clerk-appearance.ts` and maps Clerk's dark theme to existing app CSS variables.
+- The root route performs auth-state routing only: authenticated users go to `/editor`, unauthenticated users go to the configured sign-in path.
+- Clerk's built-in `UserButton` is used for profile and logout flows; user menu internals are not rebuilt.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/03-auth.md`.
+- Installed `@clerk/ui`, added Clerk appearance mapping, created sign-in/sign-up pages, added `proxy.ts`, moved the editor shell to `/editor`, and changed `/` to redirect by auth state.
+- Refined the large-screen auth left panel to match `context/screenshot/auth-part.png`: logo mark, strong headline block, descriptive copy, icon-led feature rows, and footer copyright.
+- Updated the large-screen auth layout to split the left brand panel and right Clerk form panel 50/50.
+- Switched Geist font loading from `next/font/google` to local font files to satisfy the production build requirement.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/02-editor.md`.
 - Added editor chrome components: `components/editor/editor-navbar.tsx`, `components/editor/project-sidebar.tsx`, and `components/editor/editor-dialog.tsx`.
 - Added `components/editor/editor-shell.tsx` and mounted it from `app/page.tsx` so the navbar and project sidebar are visible in the app.
@@ -52,4 +64,4 @@ Update this file whenever the current phase, active feature, or implementation s
 - Added required shadcn primitives: Button, Card, Dialog, Input, Tabs, Textarea, and ScrollArea.
 - Installed `lucide-react` and shadcn support dependencies.
 - Rebuilt `app/globals.css` around the documented dark theme tokens from `context/ui-context.md`, while preserving shadcn-required imports and token mappings.
-- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` fails only at `next/font/google` fetching Geist and Geist Mono.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes after switching Geist to local font files.

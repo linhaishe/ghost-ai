@@ -35,7 +35,7 @@ Tailwind utility names map to these variables. Use `bg-base`, `bg-surface`, `tex
 | UI text   | Geist Sans | `--font-geist-sans` |
 | Code/mono | Geist Mono | `--font-geist-mono` |
 
-Both fonts are loaded via `next/font/google` and applied as CSS variables on the `<html>` element. The base `body` uses Geist Sans with `antialiased`.
+Both fonts are loaded locally via `next/font/local` from `app/fonts/` and applied as CSS variables on the `<html>` element. The base `body` uses Geist Sans with `antialiased`.
 
 ## Border Radius
 

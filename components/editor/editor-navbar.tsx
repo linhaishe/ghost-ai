@@ -1,9 +1,11 @@
 "use client";
 
+import { UserButton } from "@clerk/nextjs";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 
 interface EditorNavbarProps {
   isSidebarOpen: boolean;
@@ -35,7 +37,9 @@ export function EditorNavbar({
         {centerContent}
       </div>
 
-      <div className="flex flex-1 items-center justify-end" />
+      <div className="flex flex-1 items-center justify-end">
+        <UserButton appearance={clerkAppearance} />
+      </div>
     </header>
   );
 }
