@@ -4,17 +4,18 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 03 (Authentication) — complete
+- Feature 04 (Project Dialogs) — complete
 
 ## Current Goal
 
-- Authentication foundation is implemented and ready for the next feature unit.
+- Project dialog and mock project interaction foundation is implemented and ready for the next feature unit.
 
 ## Completed
 
 - Feature 01 (21/06/26): Design System — shadcn/ui installed and configured for Tailwind v4, dark-only theme tokens restored in `app/globals.css`, Button/Card/Dialog/Input/Tabs/Textarea/ScrollArea components added to `components/ui/`, `lucide-react` installed, and `lib/utils.ts` `cn()` helper added. `npm run lint` and `npx tsc --noEmit` pass.
 - Feature 02 (21/06/26): Editor Chrome — editor navbar added with sidebar toggle state icons, floating project sidebar shell added with shadcn Tabs and empty states, and reusable editor dialog content pattern added for future title/description/footer actions. `npm run lint` and `npx tsc --noEmit` pass.
 - Feature 03 (21/06/26): Authentication — ClerkProvider wraps the root layout with the dark Clerk theme, sign-in/sign-up pages are implemented, `proxy.ts` protects all non-auth routes by default, `/` redirects by auth state, `/editor` hosts the editor shell, and the editor navbar includes Clerk's `UserButton`. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 04 (21/06/26): Project Dialogs — `/editor` home screen added with New Project action, mock project sidebar items added, owned project rename/delete actions wired, shared project actions hidden, mobile sidebar scrim closes on outside tap, and create/rename/delete dialogs are managed by a dedicated hook. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -22,7 +23,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Select and implement the next feature spec.
+- Feature 5 TBD
 
 ## Open Questions
 
@@ -45,9 +46,16 @@ Update this file whenever the current phase, active feature, or implementation s
 - Clerk appearance is centralized in `lib/clerk-appearance.ts` and maps Clerk's dark theme to existing app CSS variables.
 - The root route performs auth-state routing only: authenticated users go to `/editor`, unauthenticated users go to the configured sign-in path.
 - Clerk's built-in `UserButton` is used for profile and logout flows; user menu internals are not rebuilt.
+- Feature 04 uses mock project data only in the editor shell; no API calls or persistence were added.
+- Project dialog state, form state, slug preview, and loading state are centralized in `useProjectDialogs`.
+- Sidebar project actions are gated by `ownerType`: owned projects show rename/delete actions, shared projects do not.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/04-project-dialogs.md`.
+- Added project dialog state hook, editor home component, project dialogs component, and mock project type definitions.
+- Wired editor shell to mock projects, project dialogs, editor home create action, sidebar create action, and owned-project rename/delete actions with a mobile sidebar backdrop.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/03-auth.md`.
 - Installed `@clerk/ui`, added Clerk appearance mapping, created sign-in/sign-up pages, added `proxy.ts`, moved the editor shell to `/editor`, and changed `/` to redirect by auth state.
 - Refined the large-screen auth left panel to match `context/screenshot/auth-part.png`: logo mark, strong headline block, descriptive copy, icon-led feature rows, and footer copyright.
@@ -65,3 +73,4 @@ Update this file whenever the current phase, active feature, or implementation s
 - Installed `lucide-react` and shadcn support dependencies.
 - Rebuilt `app/globals.css` around the documented dark theme tokens from `context/ui-context.md`, while preserving shadcn-required imports and token mappings.
 - Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes after switching Geist to local font files.
+- ghost-ai git:(main) ✗ npm install prisma tsx @types/pg --save-dev
