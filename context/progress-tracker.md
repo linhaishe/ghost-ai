@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 04 (Project Dialogs) — complete
+- Feature 05 (Prisma Project Models) — complete
 
 ## Current Goal
 
-- Project dialog and mock project interaction foundation is implemented and ready for the next feature unit.
+- Prisma project data foundation is implemented and ready for the next feature unit.
 
 ## Completed
 
@@ -16,6 +16,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 02 (21/06/26): Editor Chrome — editor navbar added with sidebar toggle state icons, floating project sidebar shell added with shadcn Tabs and empty states, and reusable editor dialog content pattern added for future title/description/footer actions. `npm run lint` and `npx tsc --noEmit` pass.
 - Feature 03 (21/06/26): Authentication — ClerkProvider wraps the root layout with the dark Clerk theme, sign-in/sign-up pages are implemented, `proxy.ts` protects all non-auth routes by default, `/` redirects by auth state, `/editor` hosts the editor shell, and the editor navbar includes Clerk's `UserButton`. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 04 (21/06/26): Project Dialogs — `/editor` home screen added with New Project action, mock project sidebar items added, owned project rename/delete actions wired, shared project actions hidden, mobile sidebar scrim closes on outside tap, and create/rename/delete dialogs are managed by a dedicated hook. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 05 (21/06/26): Prisma Project Models — Project and ProjectCollaborator models added with status enum, relations, indexes, unique collaborator constraint, cascade delete, Prisma singleton added with Accelerate/direct adapter branching, first migration applied, and Prisma client generated. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -23,7 +24,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Feature 5 TBD
+- Select and implement the next feature spec.
 
 ## Open Questions
 
@@ -49,9 +50,16 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 04 uses mock project data only in the editor shell; no API calls or persistence were added.
 - Project dialog state, form state, slug preview, and loading state are centralized in `useProjectDialogs`.
 - Sidebar project actions are gated by `ownerType`: owned projects show rename/delete actions, shared projects do not.
+- Project metadata starts in Prisma with `Project` and `ProjectCollaborator`; generated artifacts still belong in Blob storage and are referenced by `canvasJsonPath`.
+- Prisma Client is generated to `app/generated/prisma` and imported by `lib/prisma.ts`.
+- `lib/prisma.ts` initializes Prisma with `accelerateUrl` for `prisma+postgres://` URLs and `@prisma/adapter-pg` for direct PostgreSQL URLs, with development caching on `globalThis`.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/05-prisma.md`.
+- Added `Project` and `ProjectCollaborator` models in `prisma/models/project.prisma`, plus `lib/prisma.ts` with DATABASE_URL-based Accelerate/direct adapter branching and development global caching.
+- Ran `npx prisma migrate dev --name add_project_models` and `npx prisma generate`; migration `20260621144551_add_project_models` was created and applied.
+- Verification: `npx prisma format` passes; `npx prisma validate` passes; `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/04-project-dialogs.md`.
 - Added project dialog state hook, editor home component, project dialogs component, and mock project type definitions.
 - Wired editor shell to mock projects, project dialogs, editor home create action, sidebar create action, and owned-project rename/delete actions with a mobile sidebar backdrop.
@@ -73,4 +81,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Installed `lucide-react` and shadcn support dependencies.
 - Rebuilt `app/globals.css` around the documented dark theme tokens from `context/ui-context.md`, while preserving shadcn-required imports and token mappings.
 - Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes after switching Geist to local font files.
-- ghost-ai git:(main) ✗ npm install prisma tsx @types/pg --save-dev
+- npm install prisma tsx @types/pg --save-dev
+- npm install @prisma/client @prisma/adapter-pg dotenv pg
+- npx prisma init --output ../app/generated/prisma
+- npx skills add prisma/skills
