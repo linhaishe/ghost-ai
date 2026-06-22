@@ -1,6 +1,6 @@
 "use client";
 
-import { UserButton, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { useLiveblocksFlow } from "@liveblocks/react-flow";
 import {
   ClientSideSuspense,
@@ -47,7 +47,7 @@ import {
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { CanvasTemplate } from "@/components/editor/starter-templates";
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal";
-import { clerkAppearance } from "@/lib/clerk-appearance";
+import { useCanvasAutosave, type CanvasSaveStatus } from "@/hooks/use-canvas-autosave";
 import type { CanvasEdge, CanvasNode, CanvasNodeShape, CanvasShapeDragPayload } from "@/types/canvas";
 import {
   DEFAULT_CANVAS_NODE_TEXT_COLOR,
@@ -67,6 +67,8 @@ interface EditorCanvasProps {
   roomId: string;
   isStarterTemplatesOpen: boolean;
   onStarterTemplatesOpenChange: (isOpen: boolean) => void;
+  saveRequestId: number;
+  onSaveStatusChange: (status: CanvasSaveStatus) => void;
 }
 
 interface CanvasErrorBoundaryProps {
@@ -839,37 +841,33 @@ function ParticipantAvatarGroup() {
   const visibleCollaborators = collaborators.slice(0, MAX_COLLABORATOR_AVATARS);
   const overflowCount = Math.max(collaborators.length - MAX_COLLABORATOR_AVATARS, 0);
 
+  if (!visibleCollaborators.length) {
+    return null;
+  }
+
   return (
     <div className="pointer-events-auto absolute right-5 top-5 z-10 flex items-center rounded-full border border-surface-border bg-surface/95 px-2 py-2 shadow-2xl backdrop-blur">
-      {visibleCollaborators.length ? (
-        <>
-          <div className="flex items-center pl-1">
-            {visibleCollaborators.map((collaborator, index) => (
-              <CollaboratorAvatar
-                key={collaborator.connectionId}
-                name={collaborator.info.name}
-                avatarUrl={collaborator.info.avatarUrl}
-                color={collaborator.info.cursorColor}
-                index={index}
-              />
-            ))}
-            {overflowCount ? (
-              <div
-                className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-background bg-elevated text-xs font-semibold text-copy-primary shadow-lg ring-2 ring-surface-border"
-                style={{
-                  marginLeft: -8,
-                  zIndex: 0,
-                }}
-              >
-                +{overflowCount}
-              </div>
-            ) : null}
+      <div className="flex items-center pl-1">
+        {visibleCollaborators.map((collaborator, index) => (
+          <CollaboratorAvatar
+            key={collaborator.connectionId}
+            name={collaborator.info.name}
+            avatarUrl={collaborator.info.avatarUrl}
+            color={collaborator.info.cursorColor}
+            index={index}
+          />
+        ))}
+        {overflowCount ? (
+          <div
+            className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-background bg-elevated text-xs font-semibold text-copy-primary shadow-lg ring-2 ring-surface-border"
+            style={{
+              marginLeft: -8,
+              zIndex: 0,
+            }}
+          >
+            +{overflowCount}
           </div>
-          <div className="mx-2 h-6 w-px bg-surface-border" />
-        </>
-      ) : null}
-      <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full">
-        <UserButton appearance={clerkAppearance} />
+        ) : null}
       </div>
     </div>
   );
@@ -965,7 +963,13 @@ function cloneTemplateEdge(edge: CanvasEdge): CanvasEdge {
 function SyncedReactFlowCanvas({
   isStarterTemplatesOpen,
   onStarterTemplatesOpenChange,
-}: Pick<EditorCanvasProps, "isStarterTemplatesOpen" | "onStarterTemplatesOpenChange">) {
+  roomId,
+  saveRequestId,
+  onSaveStatusChange,
+}: Pick<
+  EditorCanvasProps,
+  "isStarterTemplatesOpen" | "onStarterTemplatesOpenChange" | "roomId" | "saveRequestId" | "onSaveStatusChange"
+>) {
   const { nodes, edges, onNodesChange, onEdgesChange, onDelete } =
     useLiveblocksFlow<CanvasNode, CanvasEdge>({
       suspense: true,
@@ -981,20 +985,108 @@ function SyncedReactFlowCanvas({
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
   const canvasViewportRef = useRef<HTMLDivElement | null>(null);
+  const hasLoadedSavedCanvasRef = useRef(false);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(null);
   const [shapePreview, setShapePreview] = useState<ShapePreviewState | null>(null);
+  const [isAutosaveEnabled, setIsAutosaveEnabled] = useState(false);
   const updateMyPresence = useUpdateMyPresence();
   const undo = useUndo();
   const redo = useRedo();
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();
+  const { status: saveStatus, saveNow } = useCanvasAutosave({
+    projectId: roomId,
+    nodes,
+    edges,
+    enabled: isAutosaveEnabled,
+  });
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
   useEffect(() => {
     edgesRef.current = edges;
   }, [edges]);
+  useEffect(() => {
+    onSaveStatusChange(saveStatus);
+  }, [onSaveStatusChange, saveStatus]);
+  useEffect(() => {
+    if (saveRequestId === 0) {
+      return;
+    }
+
+    void saveNow();
+  }, [saveNow, saveRequestId]);
+  useEffect(() => {
+    if (hasLoadedSavedCanvasRef.current) {
+      return;
+    }
+
+    hasLoadedSavedCanvasRef.current = true;
+
+    if (nodesRef.current.length > 0 || edgesRef.current.length > 0) {
+      setIsAutosaveEnabled(true);
+      return;
+    }
+
+    let isCancelled = false;
+
+    async function loadSavedCanvas() {
+      try {
+        const response = await fetch(`/api/projects/${roomId}/canvas`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          canvas?: {
+            nodes?: CanvasNode[];
+            edges?: CanvasEdge[];
+          } | null;
+        };
+        const savedCanvas = payload.canvas;
+
+        if (
+          isCancelled ||
+          !savedCanvas ||
+          nodesRef.current.length > 0 ||
+          edgesRef.current.length > 0
+        ) {
+          return;
+        }
+
+        if (savedCanvas.edges?.length) {
+          onEdgesChange(savedCanvas.edges.map((edge) => ({ type: "add" as const, item: edge })));
+        }
+
+        if (savedCanvas.nodes?.length) {
+          onNodesChange(savedCanvas.nodes.map((node) => ({ type: "add" as const, item: node })));
+        }
+
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            void reactFlowInstance?.fitView({
+              duration: CANVAS_VIEWPORT_ANIMATION_DURATION,
+              padding: 0.2,
+            });
+          });
+        });
+      } finally {
+        if (!isCancelled) {
+          setIsAutosaveEnabled(true);
+        }
+      }
+    }
+
+    void loadSavedCanvas();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [onEdgesChange, onNodesChange, reactFlowInstance, roomId]);
   const renderedEdges = useMemo(
     () =>
       edges.map((edge) => ({
@@ -1357,6 +1449,8 @@ export function EditorCanvas({
   roomId,
   isStarterTemplatesOpen,
   onStarterTemplatesOpenChange,
+  saveRequestId,
+  onSaveStatusChange,
 }: EditorCanvasProps) {
   return (
     <div className="h-full w-full overflow-hidden rounded-2xl border border-surface-border bg-background shadow-2xl">
@@ -1365,8 +1459,11 @@ export function EditorCanvas({
           <RoomProvider id={roomId} initialPresence={{ cursor: null, thinking: false }}>
             <ClientSideSuspense fallback={<CanvasLoadingState />}>
               <SyncedReactFlowCanvas
+                roomId={roomId}
                 isStarterTemplatesOpen={isStarterTemplatesOpen}
                 onStarterTemplatesOpenChange={onStarterTemplatesOpenChange}
+                saveRequestId={saveRequestId}
+                onSaveStatusChange={onSaveStatusChange}
               />
             </ClientSideSuspense>
           </RoomProvider>

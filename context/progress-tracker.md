@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 20 (AI Sidebar Shell) — complete
+- Feature 21 (Canvas Autosave) — complete
 
 ## Current Goal
 
-- Existing floating AI sidebar is separated into a tabbed chat/spec UI component.
+- Collaborative canvas autosave and saved canvas loading through Vercel Blob are implemented.
 
 ## Completed
 
@@ -32,6 +32,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 18 (22/06/26): Starter Template — predefined Microservices, CI/CD Pipeline, and Event-Driven System templates added with shared canvas node/edge types and existing color palette; import modal added with screenshot-matched dark cards and lightweight SVG previews; workspace navbar includes a Templates entry point; importing a template replaces existing collaborative canvas nodes and edges, then fits the view. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 19 (22/06/26): Presence Avatars + Cursor — editor canvas now renders a room-only top-right participant group with collaborator avatars, overflow chip, conditional divider, and current Clerk `UserButton`; collaborators exclude the active Clerk user; Liveblocks presence now uses `cursor` plus `thinking`; React Flow mouse movement broadcasts cursor coordinates and mouse leave clears them; remote collaborator cursors render with colored pointer badges. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 20 (22/06/26): AI Sidebar Shell — floating AI sidebar extracted into `components/editor/ai-sidebar.tsx` while preserving parent-controlled open/close and right-side slide animation; header, close button, AI Architect and Specs tabs, chat empty state, starter prompt chips, auto-resizing prompt textarea, send behavior, Generate Spec button, and static demo spec card added. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 21 (22/06/26): Canvas Autosave — `@vercel/blob` installed, existing `Project.canvasJsonPath` reused for the saved canvas blob URL, `GET`/`PUT /api/projects/[projectId]/canvas` added for loading and saving canvas JSON through Vercel Blob, debounced `useCanvasAutosave` hook added with `saving`/`saved`/`error` state, editor loads saved canvas only when the Liveblocks room is empty, and the workspace Save button displays save status plus manual save. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -116,9 +117,23 @@ Update this file whenever the current phase, active feature, or implementation s
 - AI sidebar UI lives in `components/editor/ai-sidebar.tsx`; `EditorWorkspaceShell` continues to own open/close state and only passes control props.
 - Feature-specific token aliases `primary-text`, `muted-text`, and `accent-text` map to existing project CSS variables in `app/globals.css`.
 - AI sidebar remains UI-only for now; prompt submission updates local demo messages and does not call backend, Liveblocks, or AI services.
+- Canvas persistence reuses `Project.canvasJsonPath` as the Vercel Blob URL field; Prisma remains metadata-only while Blob stores the actual canvas JSON.
+- Canvas save/load routes live under `app/api/projects/[projectId]/canvas` and enforce existing owner/collaborator access checks before reading or writing canvas data.
+- Autosave is client-side and debounced in `hooks/use-canvas-autosave.ts`; manual saves reuse the same API path and status state.
+- Saved canvas loading is guarded by Liveblocks room emptiness so active collaborative state is never overwritten by Blob data.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/21-canvas-autosave.md`.
+- Read the canvas autosave spec and confirmed `Project.canvasJsonPath` already exists, so no Prisma schema migration was needed.
+- Read the local Next 16 route handler docs and confirmed dynamic route params are Promise-based for route handlers.
+- Installed `@vercel/blob`.
+- Added `CanvasState` shared type in `types/canvas.ts`.
+- Added `GET` and `PUT` canvas routes that use Prisma for the saved blob URL and Vercel Blob for the canvas JSON.
+- Added `hooks/use-canvas-autosave.ts` with debounced autosave, manual save support, and `saving`/`saved`/`error` status.
+- Wired saved canvas loading into `EditorCanvas`, skipping loads when Liveblocks already has nodes or edges.
+- Added workspace Save button status text and manual save trigger.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/20-ai-sidebar-shell.md`.
 - Read the AI sidebar shell spec and confirmed scope is UI-only: preserve existing floating slide behavior, no backend, no Liveblocks, and no AI generation logic.
 - Added token aliases in `app/globals.css` for the spec's text utility names while preserving existing project color values.

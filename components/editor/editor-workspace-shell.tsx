@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Download, Share2 } from "lucide-react";
+import { Bot, Download, Save, Share2 } from "lucide-react";
 import { useState } from "react";
 
 import { AiSidebar } from "@/components/editor/ai-sidebar";
@@ -11,6 +11,7 @@ import { ProjectSidebar } from "@/components/editor/project-sidebar";
 import type { EditorProject } from "@/components/editor/project-types";
 import { ShareDialog } from "@/components/editor/share-dialog";
 import { Button } from "@/components/ui/button";
+import type { CanvasSaveStatus } from "@/hooks/use-canvas-autosave";
 import { useProjectActions } from "@/hooks/use-project-actions";
 
 interface EditorWorkspaceShellProps {
@@ -30,7 +31,11 @@ export function EditorWorkspaceShell({
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(true);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [isStarterTemplatesOpen, setIsStarterTemplatesOpen] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<CanvasSaveStatus>("saved");
+  const [saveRequestId, setSaveRequestId] = useState(0);
   const projectActions = useProjectActions({ activeProjectId: roomId });
+  const saveStatusLabel =
+    saveStatus === "saving" ? "Saving..." : saveStatus === "error" ? "Save error" : "Saved";
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-base text-copy-primary">
@@ -48,6 +53,16 @@ export function EditorWorkspaceShell({
             >
               <Download className="h-4 w-4" />
               Templates
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => setSaveRequestId((current) => current + 1)}
+              className={saveStatus === "error" ? "text-error hover:text-error" : undefined}
+            >
+              <Save className="h-4 w-4" />
+              {saveStatusLabel}
             </Button>
             <Button
               variant="ghost"
@@ -88,6 +103,8 @@ export function EditorWorkspaceShell({
           roomId={roomId}
           isStarterTemplatesOpen={isStarterTemplatesOpen}
           onStarterTemplatesOpenChange={setIsStarterTemplatesOpen}
+          saveRequestId={saveRequestId}
+          onSaveStatusChange={setSaveStatus}
         />
 
         <AiSidebar isOpen={isAiSidebarOpen} onClose={() => setIsAiSidebarOpen(false)} />
