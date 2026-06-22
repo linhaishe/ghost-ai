@@ -2,9 +2,16 @@
 
 import { useLiveblocksFlow } from "@liveblocks/react-flow";
 import { ClientSideSuspense, LiveblocksProvider, RoomProvider } from "@liveblocks/react/suspense";
-import { Background, BackgroundVariant, ConnectionMode, MiniMap, ReactFlow } from "@xyflow/react";
-import type { CSSProperties, DragEvent, ReactNode } from "react";
-import { Component, useCallback, useMemo, useRef, useState } from "react";
+import {
+  Background,
+  BackgroundVariant,
+  ConnectionMode,
+  MiniMap,
+  NodeResizer,
+  ReactFlow,
+} from "@xyflow/react";
+import type { CSSProperties, DragEvent, KeyboardEvent, ReactNode } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Circle,
   Database,
@@ -19,6 +26,7 @@ import {
   CANVAS_NODE_TYPE,
   CANVAS_SHAPE_DEFAULT_SIZES,
   CANVAS_SHAPE_DRAG_TYPE,
+  CANVAS_NODE_MIN_SIZE,
   DEFAULT_CANVAS_NODE_COLOR,
 } from "@/types/canvas";
 import type { NodeProps, ReactFlowInstance } from "@xyflow/react";
@@ -98,10 +106,21 @@ function hideNativeDragPreview(dataTransfer: DataTransfer) {
   window.setTimeout(() => dragImage.remove(), 0);
 }
 
-function ShapeLabel({ label }: { label: string }) {
+function ShapeLabel({
+  label,
+  placeholder,
+}: {
+  label: string;
+  placeholder?: string;
+}) {
+  const displayLabel = label || placeholder || "";
+
   return (
-    <span className="relative z-10 max-w-[calc(100%-1.5rem)] truncate text-center text-sm font-medium text-copy-primary">
-      {label}
+    <span
+      className="relative z-10 max-w-[calc(100%-1.5rem)] truncate text-center text-sm font-medium text-copy-primary data-[placeholder=true]:text-copy-faint"
+      data-placeholder={!label && Boolean(placeholder)}
+    >
+      {displayLabel}
     </span>
   );
 }
@@ -109,11 +128,13 @@ function ShapeLabel({ label }: { label: string }) {
 function SvgShapeShell({
   children,
   label,
+  placeholder,
   color,
   selected,
 }: {
   children: ReactNode;
   label: string;
+  placeholder?: string;
   color: string;
   selected?: boolean;
 }) {
@@ -130,7 +151,7 @@ function SvgShapeShell({
       >
         {children}
       </svg>
-      <ShapeLabel label={label} />
+      <ShapeLabel label={label} placeholder={placeholder} />
     </div>
   );
 }
@@ -138,11 +159,13 @@ function SvgShapeShell({
 function CanvasShape({
   shape,
   label,
+  placeholder,
   color,
   selected,
 }: {
   shape: CanvasNodeShape;
   label: string;
+  placeholder?: string;
   color: string;
   selected?: boolean;
 }) {
@@ -157,14 +180,14 @@ function CanvasShape({
             shape === "circle" ? "9999px" : shape === "pill" ? "9999px" : "0.75rem",
         }}
       >
-        <ShapeLabel label={label} />
+        <ShapeLabel label={label} placeholder={placeholder} />
       </div>
     );
   }
 
   if (shape === "diamond") {
     return (
-      <SvgShapeShell label={label} color={color} selected={selected}>
+      <SvgShapeShell label={label} placeholder={placeholder} color={color} selected={selected}>
         <polygon
           points="50 2 98 50 50 98 2 50"
           fill="var(--bg-surface)"
@@ -179,7 +202,7 @@ function CanvasShape({
 
   if (shape === "hexagon") {
     return (
-      <SvgShapeShell label={label} color={color} selected={selected}>
+      <SvgShapeShell label={label} placeholder={placeholder} color={color} selected={selected}>
         <polygon
           points="25 3 75 3 98 50 75 97 25 97 2 50"
           fill="var(--bg-surface)"
@@ -193,7 +216,7 @@ function CanvasShape({
   }
 
   return (
-    <SvgShapeShell label={label} color={color} selected={selected}>
+    <SvgShapeShell label={label} placeholder={placeholder} color={color} selected={selected}>
       <path
         d="M8 18 C8 10 92 10 92 18 L92 82 C92 90 8 90 8 82 Z"
         fill="var(--bg-surface)"
@@ -244,14 +267,76 @@ class CanvasErrorBoundary extends Component<
   }
 }
 
-function CanvasNodeRenderer({ data, selected }: NodeProps<CanvasNode>) {
+function CanvasNodeRenderer({
+  id,
+  data,
+  selected,
+  onLabelChange,
+}: NodeProps<CanvasNode> & {
+  onLabelChange: (nodeId: string, label: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const closeEditing = useCallback(() => {
+    setIsEditing(false);
+  }, []);
+  const handleEditKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
+    event.stopPropagation();
+
+    if (event.key === "Escape") {
+      setIsEditing(false);
+    }
+  }, []);
+
   return (
-    <CanvasShape
-      shape={data.shape}
-      label={data.label}
-      color={data.color}
-      selected={selected}
-    />
+    <div className="relative h-full w-full">
+      <NodeResizer
+        isVisible={selected}
+        minWidth={CANVAS_NODE_MIN_SIZE.width}
+        minHeight={CANVAS_NODE_MIN_SIZE.height}
+        color="var(--accent-primary)"
+        handleStyle={{
+          width: 8,
+          height: 8,
+          borderRadius: 9999,
+          border: "1px solid var(--border-default)",
+          background: "var(--bg-elevated)",
+        }}
+        lineStyle={{
+          borderColor: "color-mix(in srgb, var(--accent-primary) 70%, transparent)",
+        }}
+      />
+      <div
+        className="h-full w-full"
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          setIsEditing(true);
+        }}
+      >
+        <CanvasShape
+          shape={data.shape}
+          label={isEditing ? "" : data.label}
+          placeholder={isEditing ? undefined : "Label"}
+          color={data.color}
+          selected={selected}
+        />
+      </div>
+      {isEditing ? (
+        <textarea
+          value={data.label}
+          autoFocus
+          aria-label="Edit node label"
+          placeholder="Label"
+          onBlur={closeEditing}
+          onChange={(event) => onLabelChange(id, event.target.value)}
+          onKeyDown={handleEditKeyDown}
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          className="nodrag nopan absolute left-1/2 top-1/2 z-20 max-h-[calc(100%-1rem)] w-[calc(100%-1.5rem)] -translate-x-1/2 -translate-y-1/2 resize-none overflow-hidden border-none bg-transparent p-0 text-center text-sm font-medium leading-5 text-copy-primary placeholder:text-copy-faint outline-none"
+          rows={2}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -340,14 +425,44 @@ function SyncedReactFlowCanvas() {
       },
     });
   const nodeCounterRef = useRef(0);
+  const nodesRef = useRef(nodes);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(null);
   const [shapePreview, setShapePreview] = useState<ShapePreviewState | null>(null);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+  const handleNodeLabelChange = useCallback(
+    (nodeId: string, label: string) => {
+      const currentNode = nodesRef.current.find((node) => node.id === nodeId);
+
+      if (!currentNode) {
+        return;
+      }
+
+      onNodesChange([
+        {
+          type: "replace",
+          id: nodeId,
+          item: {
+            ...currentNode,
+            data: {
+              ...currentNode.data,
+              label,
+            },
+          },
+        },
+      ]);
+    },
+    [onNodesChange],
+  );
   const nodeTypes = useMemo(
     () => ({
-      [CANVAS_NODE_TYPE]: CanvasNodeRenderer,
+      [CANVAS_NODE_TYPE]: (props: NodeProps<CanvasNode>) => (
+        <CanvasNodeRenderer {...props} onLabelChange={handleNodeLabelChange} />
+      ),
     }),
-    [],
+    [handleNodeLabelChange],
   );
   const handleDragOver = useCallback((event: DragEvent) => {
     event.preventDefault();

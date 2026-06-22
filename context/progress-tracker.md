@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 13 (Node Shape Rendering) — complete
+- Feature 14 (Node Editing) — complete
 
 ## Current Goal
 
-- Canvas nodes render proper shape variants and shape dragging shows a cursor-following ghost preview.
+- Canvas nodes support selected-node resizing and synced inline label editing.
 
 ## Completed
 
@@ -25,6 +25,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 11 (22/06/26): Base Canvas — workspace placeholder replaced with a client Liveblocks/React Flow canvas wrapper, shared canvas node/edge types added, empty synced nodes and edges initialized through `useLiveblocksFlow`, and basic canvas rendering includes loose connections, `fitView`, MiniMap, and dot-pattern background. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 12 (22/06/26): Shape Panel — bottom-center draggable shape toolbar added for rectangle, diamond, circle, pill, cylinder, and hexagon; drop handling converts screen coordinates to canvas coordinates and creates `canvasNode` nodes with empty labels, default color, shape data, default size, and generated IDs. Basic custom node rendering displays new nodes as bordered rectangles. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 13 (22/06/26): Node Shape Rendering — custom node renderer now displays rectangle, pill, and circle with CSS shapes, diamond, hexagon, and cylinder with scalable SVG shapes, selected nodes use brighter strokes, and shape dragging shows a cursor-following ghost preview using the same shape and default size as drop creation. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 14 (22/06/26): Node Editing — selected canvas nodes show subtle React Flow resize handles with minimum size constraints, node labels can be edited inline by double-clicking the centered label area, empty labels show centered placeholder text, textarea interactions avoid canvas dragging/panning, and label edits sync through the existing Liveblocks React Flow node state. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -86,9 +87,19 @@ Update this file whenever the current phase, active feature, or implementation s
 - New dropped shapes are added through Liveblocks React Flow's `onNodesChange` add change, keeping creation inside the synced flow state.
 - The custom canvas node renderer switches by `data.shape`; rectangle, pill, and circle are CSS shapes, while diamond, hexagon, and cylinder are scalable SVG shapes.
 - Shape drag preview is custom-rendered and the browser's native drag image is hidden so the preview follows the cursor without duplicate visuals.
+- Node resizing uses React Flow's `NodeResizer` inside the custom node renderer and relies on the existing `useLiveblocksFlow` dimensions change handling.
+- Inline label edits replace the current node through `onNodesChange`, keeping label updates inside the synced Liveblocks flow state.
+- Text editing surfaces use `nodrag`/`nopan` plus event propagation guards so editing does not trigger canvas drag or pan.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/14-node-editing.md`.
+- Read the node editing spec and confirmed the scope is resize handles plus inline label editing only.
+- Added shared minimum node size and wired selected-node `NodeResizer` handles into the custom node renderer.
+- Added centered empty-label placeholder text and double-click-to-edit behavior.
+- Added an inline textarea overlay that updates node labels as users type, closes on blur or Escape, and prevents canvas drag/pan interactions while editing.
+- Label updates now replace the current node via `onNodesChange`, preserving Liveblocks React Flow synchronization.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/13-node-shape.md`.
 - Read the node shape spec and confirmed the scope is visual rendering plus drag preview only; drop behavior should remain unchanged.
 - Replaced the placeholder custom node renderer with shape-aware rendering for all six canvas shapes.

@@ -4,6 +4,7 @@ export const CANVAS_NODE_TYPE = "canvasNode";
 export const CANVAS_EDGE_TYPE = "canvasEdge";
 export const CANVAS_SHAPE_DRAG_TYPE = "application/ghost-ai-canvas-shape";
 export const DEFAULT_CANVAS_NODE_COLOR = "#00c8d4";
+export const CANVAS_NODE_MIN_SIZE: CanvasShapeSize = { width: 96, height: 56 };
 
 export type CanvasNodeShape =
   | "rectangle"
