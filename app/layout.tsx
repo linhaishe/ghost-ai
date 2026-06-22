@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 
 import { afterAuthPath, clerkAppearance, signInPath, signUpPath } from "@/lib/clerk-appearance";
 
+import "@xyflow/react/dist/style.css";
 import "./globals.css";
 
 const geistSans = localFont({

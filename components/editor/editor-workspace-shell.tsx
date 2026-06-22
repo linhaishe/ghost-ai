@@ -1,8 +1,9 @@
 "use client";
 
-import { Bot, Compass, Share2, Sparkles } from "lucide-react";
+import { Bot, Share2, Sparkles } from "lucide-react";
 import { useState } from "react";
 
+import { EditorCanvas } from "@/components/editor/editor-canvas";
 import { EditorNavbar } from "@/components/editor/editor-navbar";
 import { ProjectDialogs } from "@/components/editor/project-dialogs";
 import { ProjectSidebar } from "@/components/editor/project-sidebar";
@@ -73,26 +74,7 @@ export function EditorWorkspaceShell({
       />
 
       <main className="relative min-h-0 flex-1 overflow-hidden bg-base p-4">
-        <section className="relative flex h-full min-w-0 items-center justify-center overflow-hidden rounded-2xl border border-surface-border bg-background px-6 shadow-2xl">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border-default)_1px,transparent_1px),linear-gradient(to_bottom,var(--border-default)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,var(--accent-primary-dim),transparent_34%),radial-gradient(circle_at_88%_88%,rgba(100,87,249,0.22),transparent_28%)]" />
-
-          <div className="relative flex max-w-2xl flex-col items-center text-center">
-            <div className="flex size-16 items-center justify-center rounded-2xl border border-surface-border bg-elevated/80 text-brand shadow-xl">
-              <Compass className="h-8 w-8" />
-            </div>
-            <p className="mt-8 text-xs font-semibold uppercase tracking-[0.35em] text-copy-faint">
-              Workspace Shell
-            </p>
-            <h1 className="mt-5 text-3xl font-semibold leading-tight tracking-tight text-copy-primary md:text-4xl">
-              Canvas and collaboration tooling land here next.
-            </h1>
-            <p className="mt-6 max-w-xl text-base leading-8 text-copy-muted">
-              This room is ready for the shared architecture canvas, durable AI workflows, and
-              real-time presence. For now, the shell is wired with project context and navigation only.
-            </p>
-          </div>
-        </section>
+        <EditorCanvas roomId={roomId} />
 
         <aside
           className={cn(

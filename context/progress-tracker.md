@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 09 (Share Dialog) — complete
+- Feature 13 (Node Shape Rendering) — complete
 
 ## Current Goal
 
-- Workspace share dialog is implemented with collaborator listing, owner-managed invites/removals, link copy feedback, and Clerk user enrichment.
+- Canvas nodes render proper shape variants and shape dragging shows a cursor-following ghost preview.
 
 ## Completed
 
@@ -21,6 +21,10 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 07 (22/06/26): Wire Editor Home — `/editor` fetches owned/shared project data server-side, the sidebar uses real project lists, project dialogs are backed by `POST`/`PATCH`/`DELETE` project API calls, create generates a slug-plus-suffix room ID aligned with the project ID, and create/delete navigate or refresh as required. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 08 (22/06/26): Editor Workspace Shell — `/editor/[roomId]` server component added with Clerk identity lookup and project access checks, unauthorized/missing projects render `AccessDenied`, workspace shell renders project-name navbar, share and AI sidebar controls, highlighted project sidebar, central canvas placeholder, and right AI chat placeholder. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 09 (22/06/26): Share Dialog — workspace Share button opens a dialog with project link copy feedback, collaborator listing enriched from Clerk user data, owner-only invite/remove actions, and collaborator read-only mode. Collaborator API route added with server-side access checks. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 10 (22/06/26): Liveblocks Setup — `liveblocks.config.ts` defines Presence and UserMeta, cached Liveblocks node client helper added with deterministic cursor colors, `/api/liveblocks-auth` verifies Clerk auth and project access, ensures rooms exist, and returns a Liveblocks room token with user metadata. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 11 (22/06/26): Base Canvas — workspace placeholder replaced with a client Liveblocks/React Flow canvas wrapper, shared canvas node/edge types added, empty synced nodes and edges initialized through `useLiveblocksFlow`, and basic canvas rendering includes loose connections, `fitView`, MiniMap, and dot-pattern background. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 12 (22/06/26): Shape Panel — bottom-center draggable shape toolbar added for rectangle, diamond, circle, pill, cylinder, and hexagon; drop handling converts screen coordinates to canvas coordinates and creates `canvasNode` nodes with empty labels, default color, shape data, default size, and generated IDs. Basic custom node rendering displays new nodes as bordered rectangles. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 13 (22/06/26): Node Shape Rendering — custom node renderer now displays rectangle, pill, and circle with CSS shapes, diamond, hexagon, and cylinder with scalable SVG shapes, selected nodes use brighter strokes, and shape dragging shows a cursor-following ghost preview using the same shape and default size as drop creation. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -70,9 +74,47 @@ Update this file whenever the current phase, active feature, or implementation s
 - Collaborator management lives under `/api/projects/[projectId]/collaborators`; listing is available to owners and collaborators, while invite/remove are owner-only.
 - Collaborators continue to be stored by email only in Prisma; Clerk Backend API is used at read time to enrich display names and avatar URLs when a matching Clerk user exists.
 - Share dialog state and collaborator mutations stay in the workspace client shell; project access remains enforced on the server route.
+- Liveblocks application types live in `liveblocks.config.ts`; presence tracks cursor coordinates and `isThinking`, while user metadata contains name, avatar URL, and deterministic cursor color.
+- Liveblocks node access lives in `lib/liveblocks.ts`; the client is cached in development and lazily initialized so production builds do not require `LIVEBLOCKS_SECRET_KEY` at build time.
+- `/api/liveblocks-auth` uses the project ID as the room ID, trusts `lib/project-access.ts` for authorization, creates missing rooms with private default access, and issues a room-scoped token via `prepareSession`.
+- Canvas types live in `types/canvas.ts`; the base node data shape supports label, color, and shape, with `canvasNode`/`canvasEdge` reserved as the custom type names.
+- Liveblocks Storage includes an optional React Flow `flow` object because `useLiveblocksFlow` initializes it only when missing.
+- `EditorCanvas` owns the client-only Liveblocks provider, room provider, suspense loading state, connection error fallback, and React Flow wiring.
+- React Flow package CSS is imported from the root layout as a global external stylesheet.
+- Shape drag payloads use `application/ghost-ai-canvas-shape` and include both shape name and default size.
+- Shape defaults and canvas node constants live in `types/canvas.ts` so drag payload creation and node creation share the same source of truth.
+- New dropped shapes are added through Liveblocks React Flow's `onNodesChange` add change, keeping creation inside the synced flow state.
+- The custom canvas node renderer switches by `data.shape`; rectangle, pill, and circle are CSS shapes, while diamond, hexagon, and cylinder are scalable SVG shapes.
+- Shape drag preview is custom-rendered and the browser's native drag image is hidden so the preview follows the cursor without duplicate visuals.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/13-node-shape.md`.
+- Read the node shape spec and confirmed the scope is visual rendering plus drag preview only; drop behavior should remain unchanged.
+- Replaced the placeholder custom node renderer with shape-aware rendering for all six canvas shapes.
+- Added selected-state stroke styling so selected nodes use the full node color and resting nodes use a subtler color-mixed stroke.
+- Added a cursor-following ghost preview for shape drags, using the same drag payload shape and default size as drop creation.
+- Hid the browser native drag image during shape drags so only the custom ghost preview is visible.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
+- Started implementation of `context/feature-specs/12-shape-panel.md`.
+- Read the shape panel spec and confirmed the scope is drag/drop node creation only, with simple rectangle rendering for all custom node shapes.
+- Expanded shared canvas types to include all six shape names, drag payload typing, default shape sizes, and default node color.
+- Added a bottom-center floating shape toolbar with draggable icon buttons.
+- Added canvas `dragover` and `drop` handlers that parse the shape payload, convert screen coordinates with the React Flow instance, generate shape/timestamp/counter IDs, and create `canvasNode` nodes.
+- Added a basic custom node renderer that displays every shape as a simple bordered rectangle with centered label text.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
+- Started implementation of `context/feature-specs/11-base-canvas.md`.
+- Read the Liveblocks React Flow reference and confirmed `useLiveblocksFlow` initializes missing `flow` storage with the provided empty initial nodes and edges.
+- Added shared canvas types for `CanvasNode`, `CanvasEdge`, and node data.
+- Added `components/editor/editor-canvas.tsx` with `/api/liveblocks-auth`, current room ID, `cursor: null` initial presence, `ClientSideSuspense`, error fallback, empty initial nodes/edges, loose connections, `fitView`, `MiniMap`, and dot-pattern background.
+- Replaced the workspace placeholder with the synced canvas while keeping `/editor/[roomId]` server-side.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
+- Started implementation of `context/feature-specs/10-liveblocks-setup.md`.
+- Installed `@liveblocks/node` because the local dependency set had Liveblocks client/react packages but not the server SDK required for room creation and auth tokens.
+- Added `liveblocks.config.ts` with typed Presence and UserMeta.
+- Added `lib/liveblocks.ts` with a cached Liveblocks node client and deterministic cursor color helper.
+- Added `POST /api/liveblocks-auth` to require Clerk auth, verify project access, ensure the room exists, and authorize the user for that room with metadata.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/09-share-dialog.md`.
 - Added `/api/projects/[projectId]/collaborators` for collaborator list/invite/remove with project access checks and owner-only mutations.
 - Added Clerk user enrichment for collaborator emails via `clerkClient().users.getUserList`, with email-only fallback when no Clerk user is found.
