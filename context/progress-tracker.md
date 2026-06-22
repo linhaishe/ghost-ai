@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 16 (Edge Behavior) — complete
+- Feature 17 (Canvas Ergonomics) — complete
 
 ## Current Goal
 
-- Canvas edges use custom right-angle rendering with arrows, reconnecting, and inline labels.
+- Canvas zoom/history control bar and matching keyboard shortcuts are implemented.
 
 ## Completed
 
@@ -28,6 +28,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 14 (22/06/26): Node Editing — selected canvas nodes show subtle React Flow resize handles with minimum size constraints, node labels can be edited inline by double-clicking the centered label area, empty labels show centered placeholder text, textarea interactions avoid canvas dragging/panning, and label edits sync through the existing Liveblocks React Flow node state. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 15 (22/06/26): Node Color Toolbar — `NODE_COLORS` palette added from `ui-context.md`, canvas node data now stores background and text colors, selected nodes show a floating swatch toolbar above the node, active swatches are highlighted, hover glow uses the paired text color, and swatch clicks update node colors through the existing Liveblocks React Flow state. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 16 (22/06/26): Edge Behavior — custom `canvasEdge` renderer added with smooth-step right-angle routing, light arrowed strokes, brighter hover/selected state, wider invisible interaction path, reconnect support, multiple same-node connections, and inline labels positioned with `EdgeLabelRenderer` plus `getSmoothStepPath` label coordinates. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 17 (22/06/26): Canvas Ergonomics — bottom-left pill control bar added with zoom out, fit view, zoom in, undo, and redo controls; zoom actions use the React Flow instance with short animation, undo/redo use Liveblocks history with disabled states, keyboard shortcuts are centralized in `hooks/useKeyboardShortcuts.ts`, editable fields are ignored, and the MiniMap was removed. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -35,7 +36,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Select and implement the next feature spec.
+- Next feature spec.
 
 ## Open Questions
 
@@ -100,9 +101,19 @@ Update this file whenever the current phase, active feature, or implementation s
 - Canvas edges use the custom `canvasEdge` type by default, store label text in `data.label`, and render through a local edge component rather than React Flow's default edge.
 - Edge labels are updated with `onEdgesChange` replace operations so label edits stay in the synced Liveblocks flow state.
 - Edge labels use `EdgeLabelRenderer` and the label coordinates returned by `getSmoothStepPath`; midpoint placement is not manually calculated.
+- Canvas viewport controls live inside `EditorCanvas` as a bottom-left overlay and call React Flow instance methods directly for zoom out, fit view, and zoom in.
+- Canvas undo and redo are wired through Liveblocks `useUndo`, `useRedo`, `useCanUndo`, and `useCanRedo`, keeping history behavior tied to the existing room state.
+- Canvas keyboard shortcuts are centralized in `hooks/useKeyboardShortcuts.ts` and intentionally skip inputs, textareas, and editable fields.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/17-canvas-ergonomics.md`.
+- Read the canvas ergonomics spec and confirmed scope is bottom-left controls, Liveblocks history, keyboard shortcuts, and removing the MiniMap.
+- Added `hooks/useKeyboardShortcuts.ts` for zoom and history shortcuts, with editable-field guards.
+- Added a bottom-left pill canvas control bar with zoom out, fit view, zoom in, undo, redo, and a divider between control groups.
+- Wired viewport controls to the React Flow instance with short animation and wired history controls to Liveblocks undo/redo hooks with disabled button states.
+- Removed the React Flow MiniMap from the canvas.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/16-edge-behavior.md`.
 - Read the edge behavior spec and confirmed existing node handles/reconnect groundwork should be folded into the formal custom edge implementation.
 - Added `CanvasEdgeData` with `label` in `types/canvas.ts`.

@@ -1,7 +1,15 @@
 "use client";
 
 import { useLiveblocksFlow } from "@liveblocks/react-flow";
-import { ClientSideSuspense, LiveblocksProvider, RoomProvider } from "@liveblocks/react/suspense";
+import {
+  ClientSideSuspense,
+  LiveblocksProvider,
+  RoomProvider,
+  useCanRedo,
+  useCanUndo,
+  useRedo,
+  useUndo,
+} from "@liveblocks/react/suspense";
 import {
   Background,
   BackgroundVariant,
@@ -10,7 +18,6 @@ import {
   EdgeLabelRenderer,
   Handle,
   MarkerType,
-  MiniMap,
   NodeResizeControl,
   Position,
   ResizeControlVariant,
@@ -24,11 +31,17 @@ import {
   Circle,
   Database,
   Diamond,
+  Maximize2,
   Hexagon,
+  Redo2,
   RectangleHorizontal,
   SquareRoundCorner,
+  Undo2,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { CanvasEdge, CanvasNode, CanvasNodeShape, CanvasShapeDragPayload } from "@/types/canvas";
 import {
   DEFAULT_CANVAS_NODE_TEXT_COLOR,
@@ -84,6 +97,7 @@ const NODE_HANDLE_POSITIONS = [
 const NODE_RESIZE_CONTROL_POSITIONS = ["top", "right", "bottom", "left"] as const;
 
 const DEFAULT_EDGE_LABEL = "";
+const CANVAS_VIEWPORT_ANIMATION_DURATION = 160;
 
 function CanvasLoadingState() {
   return (
@@ -692,6 +706,78 @@ function ShapePanel({
   );
 }
 
+function CanvasControlButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      className="nodrag nopan flex size-9 items-center justify-center rounded-full text-copy-muted transition hover:bg-elevated hover:text-copy-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-copy-muted"
+    >
+      {children}
+    </button>
+  );
+}
+
+function CanvasControlBar({
+  canZoom,
+  canUndo,
+  canRedo,
+  onZoomOut,
+  onFitView,
+  onZoomIn,
+  onUndo,
+  onRedo,
+}: {
+  canZoom: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  onZoomOut: () => void;
+  onFitView: () => void;
+  onZoomIn: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+}) {
+  return (
+    <div className="pointer-events-auto absolute bottom-5 left-5 z-10 flex items-center gap-1 rounded-full border border-surface-border bg-surface/95 px-2 py-2 shadow-2xl backdrop-blur">
+      <CanvasControlButton label="Zoom out" disabled={!canZoom} onClick={onZoomOut}>
+        <ZoomOut className="h-4 w-4" />
+      </CanvasControlButton>
+      <CanvasControlButton label="Fit view" disabled={!canZoom} onClick={onFitView}>
+        <Maximize2 className="h-4 w-4" />
+      </CanvasControlButton>
+      <CanvasControlButton label="Zoom in" disabled={!canZoom} onClick={onZoomIn}>
+        <ZoomIn className="h-4 w-4" />
+      </CanvasControlButton>
+      <div className="mx-1 h-6 w-px bg-surface-border" />
+      <CanvasControlButton label="Undo" disabled={!canUndo} onClick={onUndo}>
+        <Undo2 className="h-4 w-4" />
+      </CanvasControlButton>
+      <CanvasControlButton label="Redo" disabled={!canRedo} onClick={onRedo}>
+        <Redo2 className="h-4 w-4" />
+      </CanvasControlButton>
+    </div>
+  );
+}
+
 function SyncedReactFlowCanvas() {
   const { nodes, edges, onNodesChange, onEdgesChange, onDelete } =
     useLiveblocksFlow<CanvasNode, CanvasEdge>({
@@ -710,6 +796,10 @@ function SyncedReactFlowCanvas() {
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(null);
   const [shapePreview, setShapePreview] = useState<ShapePreviewState | null>(null);
+  const undo = useUndo();
+  const redo = useRedo();
+  const canUndo = useCanUndo();
+  const canRedo = useCanRedo();
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
@@ -928,6 +1018,34 @@ function SyncedReactFlowCanvas() {
   const endShapePreview = useCallback(() => {
     setShapePreview(null);
   }, []);
+  const handleZoomOut = useCallback(() => {
+    void reactFlowInstance?.zoomOut({ duration: CANVAS_VIEWPORT_ANIMATION_DURATION });
+  }, [reactFlowInstance]);
+  const handleFitView = useCallback(() => {
+    void reactFlowInstance?.fitView({
+      duration: CANVAS_VIEWPORT_ANIMATION_DURATION,
+      padding: 0.2,
+    });
+  }, [reactFlowInstance]);
+  const handleZoomIn = useCallback(() => {
+    void reactFlowInstance?.zoomIn({ duration: CANVAS_VIEWPORT_ANIMATION_DURATION });
+  }, [reactFlowInstance]);
+  const handleUndo = useCallback(() => {
+    if (canUndo) {
+      undo();
+    }
+  }, [canUndo, undo]);
+  const handleRedo = useCallback(() => {
+    if (canRedo) {
+      redo();
+    }
+  }, [canRedo, redo]);
+
+  useKeyboardShortcuts({
+    reactFlowInstance,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+  });
 
   return (
     <div className="relative h-full w-full" onDragOver={handleDragOver} onDrop={handleDrop}>
@@ -947,12 +1065,6 @@ function SyncedReactFlowCanvas() {
         edgesReconnectable
         fitView
       >
-        <MiniMap
-          className="!border !border-surface-border !bg-surface/90"
-          maskColor="rgba(2, 6, 23, 0.64)"
-          nodeColor="var(--accent-primary)"
-          nodeStrokeColor="var(--border-default)"
-        />
         <Background
           variant={BackgroundVariant.Dots}
           gap={24}
@@ -960,6 +1072,16 @@ function SyncedReactFlowCanvas() {
           color="var(--border-default)"
         />
       </ReactFlow>
+      <CanvasControlBar
+        canZoom={Boolean(reactFlowInstance)}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onZoomOut={handleZoomOut}
+        onFitView={handleFitView}
+        onZoomIn={handleZoomIn}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+      />
       <ShapePanel
         onPreviewStart={startShapePreview}
         onPreviewMove={moveShapePreview}
