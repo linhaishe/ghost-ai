@@ -1,8 +1,9 @@
 "use client";
 
 import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-import type { MockProject } from "@/components/editor/project-types";
+import type { EditorProject } from "@/components/editor/project-types";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -10,10 +11,11 @@ import { cn } from "@/lib/utils";
 interface ProjectSidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  projects: MockProject[];
+  ownedProjects: EditorProject[];
+  sharedProjects: EditorProject[];
   onCreateProject: () => void;
-  onRenameProject: (project: MockProject) => void;
-  onDeleteProject: (project: MockProject) => void;
+  onRenameProject: (project: EditorProject) => void;
+  onDeleteProject: (project: EditorProject) => void;
 }
 
 function EmptyProjectsState({ label }: { label: string }) {
@@ -28,13 +30,15 @@ function EmptyProjectsState({ label }: { label: string }) {
 function ProjectList({
   emptyLabel,
   projects,
+  onOpenProject,
   onRenameProject,
   onDeleteProject,
 }: {
   emptyLabel: string;
-  projects: MockProject[];
-  onRenameProject: (project: MockProject) => void;
-  onDeleteProject: (project: MockProject) => void;
+  projects: EditorProject[];
+  onOpenProject: (project: EditorProject) => void;
+  onRenameProject: (project: EditorProject) => void;
+  onDeleteProject: (project: EditorProject) => void;
 }) {
   if (projects.length === 0) {
     return <EmptyProjectsState label={emptyLabel} />;
@@ -47,7 +51,7 @@ function ProjectList({
           key={project.id}
           className="flex items-center justify-between gap-3 rounded-xl border border-surface-border bg-subtle/50 px-3 py-3"
         >
-          <button className="min-w-0 flex-1 text-left" type="button">
+          <button className="min-w-0 flex-1 text-left" type="button" onClick={() => onOpenProject(project)}>
             <span className="block truncate text-sm font-medium text-copy-primary">
               {project.name}
             </span>
@@ -83,13 +87,18 @@ function ProjectList({
 export function ProjectSidebar({
   isOpen,
   onClose,
-  projects,
+  ownedProjects,
+  sharedProjects,
   onCreateProject,
   onRenameProject,
   onDeleteProject,
 }: ProjectSidebarProps) {
-  const ownedProjects = projects.filter((project) => project.ownerType === "owned");
-  const sharedProjects = projects.filter((project) => project.ownerType === "shared");
+  const router = useRouter();
+
+  function openProject(project: EditorProject) {
+    router.push(`/editor/${project.id}`);
+    onClose();
+  }
 
   return (
     <>
@@ -127,6 +136,7 @@ export function ProjectSidebar({
             <ProjectList
               emptyLabel="My Projects"
               projects={ownedProjects}
+              onOpenProject={openProject}
               onRenameProject={onRenameProject}
               onDeleteProject={onDeleteProject}
             />
@@ -135,6 +145,7 @@ export function ProjectSidebar({
             <ProjectList
               emptyLabel="Shared Projects"
               projects={sharedProjects}
+              onOpenProject={openProject}
               onRenameProject={onRenameProject}
               onDeleteProject={onDeleteProject}
             />

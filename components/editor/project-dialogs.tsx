@@ -3,7 +3,7 @@
 import { FormEvent } from "react";
 
 import { EditorDialogContent } from "@/components/editor/editor-dialog";
-import type { MockProject } from "@/components/editor/project-types";
+import type { EditorProject } from "@/components/editor/project-types";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ type ProjectDialogType = "create" | "rename" | "delete";
 
 interface ProjectDialogState {
   type: ProjectDialogType;
-  project?: MockProject;
+  project?: EditorProject;
 }
 
 interface ProjectDialogsProps {
@@ -22,7 +22,7 @@ interface ProjectDialogsProps {
   slugPreview: string;
   onProjectNameChange: (value: string) => void;
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<void>;
 }
 
 export function ProjectDialogs({
@@ -44,7 +44,7 @@ export function ProjectDialogs({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit();
+    void onSubmit();
   }
 
   return (
@@ -77,7 +77,7 @@ export function ProjectDialogs({
               />
             </div>
             <div className="rounded-xl border border-surface-border bg-subtle px-3 py-2 text-sm text-copy-muted">
-              Slug preview: <span className="font-medium text-brand">{slugPreview}</span>
+              Room ID preview: <span className="font-medium text-brand">{slugPreview}</span>
             </div>
           </form>
         </EditorDialogContent>
@@ -118,13 +118,13 @@ export function ProjectDialogs({
       {dialogState?.type === "delete" && dialogState.project ? (
         <EditorDialogContent
           title="Delete Project"
-          description={`Delete "${dialogState.project.name}"? This is a destructive confirmation for now; no data will be persisted.`}
+          description={`Delete "${dialogState.project.name}"? This project will be permanently removed.`}
           footerActions={
             <>
               <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
                 Cancel
               </Button>
-              <Button type="button" variant="destructive" onClick={onSubmit} disabled={isLoading}>
+              <Button type="button" variant="destructive" onClick={() => void onSubmit()} disabled={isLoading}>
                 Delete Project
               </Button>
             </>

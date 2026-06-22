@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 05 (Prisma Project Models) — complete
+- Feature 07 (Wire Editor Home) — complete
 
 ## Current Goal
 
-- Prisma project data foundation is implemented and ready for the next feature unit.
+- Editor home now uses server-loaded project data and API-backed project actions.
 
 ## Completed
 
@@ -17,6 +17,8 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 03 (21/06/26): Authentication — ClerkProvider wraps the root layout with the dark Clerk theme, sign-in/sign-up pages are implemented, `proxy.ts` protects all non-auth routes by default, `/` redirects by auth state, `/editor` hosts the editor shell, and the editor navbar includes Clerk's `UserButton`. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 04 (21/06/26): Project Dialogs — `/editor` home screen added with New Project action, mock project sidebar items added, owned project rename/delete actions wired, shared project actions hidden, mobile sidebar scrim closes on outside tap, and create/rename/delete dialogs are managed by a dedicated hook. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 05 (21/06/26): Prisma Project Models — Project and ProjectCollaborator models added with status enum, relations, indexes, unique collaborator constraint, cascade delete, Prisma singleton added with Accelerate/direct adapter branching, first migration applied, and Prisma client generated. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 06 (22/06/26): Project API Routes — backend-only REST endpoints added for listing, creating, renaming, and deleting projects; routes use Clerk user IDs as project owners, default missing create names to `Untitled Project`, enforce owner-only rename/delete, and return explicit `401`/`403` responses. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 07 (22/06/26): Wire Editor Home — `/editor` fetches owned/shared project data server-side, the sidebar uses real project lists, project dialogs are backed by `POST`/`PATCH`/`DELETE` project API calls, create generates a slug-plus-suffix room ID aligned with the project ID, and create/delete navigate or refresh as required. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -53,9 +55,27 @@ Update this file whenever the current phase, active feature, or implementation s
 - Project metadata starts in Prisma with `Project` and `ProjectCollaborator`; generated artifacts still belong in Blob storage and are referenced by `canvasJsonPath`.
 - Prisma Client is generated to `app/generated/prisma` and imported by `lib/prisma.ts`.
 - `lib/prisma.ts` initializes Prisma with `accelerateUrl` for `prisma+postgres://` URLs and `@prisma/adapter-pg` for direct PostgreSQL URLs, with development caching on `globalThis`.
+- Project REST routes live under `app/api/projects` and intentionally stay backend-only until the UI integration feature.
+- `/api/projects(.*)` is public at the Clerk proxy layer so route handlers can return explicit API `401` responses while still reading auth through `await auth()`.
+- Project list/create use the authenticated Clerk user ID as `ownerId`; rename/delete first verify project ownership and return `403` for non-owner mutations.
+- Editor project data is loaded in server components through `lib/project-data.ts`; client components receive already-shaped owned/shared lists.
+- Editor project view models use the project ID as the sidebar slug because new project IDs are aligned with Liveblocks room IDs.
+- Project mutations are centralized in `hooks/use-project-actions.ts`; create navigates to `/editor/{projectId}`, rename refreshes, and deleting the active workspace redirects to `/editor`.
+- `/editor/[projectId]` renders the same editor shell as `/editor` and passes the active workspace ID to client project actions.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/07-wire-editor-home.md`.
+- Added `lib/project-data.ts` to load owned projects by Clerk user ID and shared projects by collaborator email on the server.
+- Replaced mock editor shell data with server-provided owned/shared project lists and added `/editor/[projectId]` for workspace navigation.
+- Added `hooks/use-project-actions.ts` for create/rename/delete dialog state, room ID preview generation, API mutations, refreshes, and active-workspace delete redirects.
+- Updated `POST /api/projects` to accept a provided string project ID so new project IDs can align with generated Liveblocks room IDs.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
+- Started implementation of `context/feature-specs/06-project-apis.md`.
+- Added `GET` and `POST` handlers in `app/api/projects/route.ts` for owner-scoped project listing and project creation with `Untitled Project` fallback naming.
+- Added `PATCH` and `DELETE` handlers in `app/api/projects/[projectId]/route.ts` for owner-only rename and delete mutations.
+- Updated `proxy.ts` so `/api/projects(.*)` is handled by route-level auth checks instead of `auth.protect()`, preserving the required `401` API response.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/05-prisma.md`.
 - Added `Project` and `ProjectCollaborator` models in `prisma/models/project.prisma`, plus `lib/prisma.ts` with DATABASE_URL-based Accelerate/direct adapter branching and development global caching.
 - Ran `npx prisma migrate dev --name add_project_models` and `npx prisma generate`; migration `20260621144551_add_project_models` was created and applied.

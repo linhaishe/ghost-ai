@@ -6,33 +6,18 @@ import { EditorHome } from "@/components/editor/editor-home";
 import { EditorNavbar } from "@/components/editor/editor-navbar";
 import { ProjectSidebar } from "@/components/editor/project-sidebar";
 import { ProjectDialogs } from "@/components/editor/project-dialogs";
-import type { MockProject } from "@/components/editor/project-types";
-import { useProjectDialogs } from "@/components/editor/use-project-dialogs";
+import type { EditorProject } from "@/components/editor/project-types";
+import { useProjectActions } from "@/hooks/use-project-actions";
 
-const mockProjects: MockProject[] = [
-  {
-    id: "owned-payments",
-    name: "Payments Platform",
-    slug: "payments-platform",
-    ownerType: "owned",
-  },
-  {
-    id: "owned-analytics",
-    name: "Analytics Pipeline",
-    slug: "analytics-pipeline",
-    ownerType: "owned",
-  },
-  {
-    id: "shared-marketplace",
-    name: "Marketplace Redesign",
-    slug: "marketplace-redesign",
-    ownerType: "shared",
-  },
-];
+interface EditorShellProps {
+  activeProjectId?: string;
+  ownedProjects: EditorProject[];
+  sharedProjects: EditorProject[];
+}
 
-export function EditorShell() {
+export function EditorShell({ activeProjectId, ownedProjects, sharedProjects }: EditorShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const projectDialogs = useProjectDialogs();
+  const projectActions = useProjectActions({ activeProjectId });
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-base text-copy-primary">
@@ -44,24 +29,25 @@ export function EditorShell() {
       <ProjectSidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        projects={mockProjects}
-        onCreateProject={projectDialogs.openCreateDialog}
-        onRenameProject={projectDialogs.openRenameDialog}
-        onDeleteProject={projectDialogs.openDeleteDialog}
+        ownedProjects={ownedProjects}
+        sharedProjects={sharedProjects}
+        onCreateProject={projectActions.openCreateDialog}
+        onRenameProject={projectActions.openRenameDialog}
+        onDeleteProject={projectActions.openDeleteDialog}
       />
 
       <main className="relative flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden">
-        <EditorHome onCreateProject={projectDialogs.openCreateDialog} />
+        <EditorHome onCreateProject={projectActions.openCreateDialog} />
       </main>
 
       <ProjectDialogs
-        dialogState={projectDialogs.dialogState}
-        isLoading={projectDialogs.isLoading}
-        projectName={projectDialogs.projectName}
-        slugPreview={projectDialogs.slugPreview}
-        onProjectNameChange={projectDialogs.setProjectName}
-        onClose={projectDialogs.closeDialog}
-        onSubmit={projectDialogs.submitDialog}
+        dialogState={projectActions.dialogState}
+        isLoading={projectActions.isLoading}
+        projectName={projectActions.projectName}
+        slugPreview={projectActions.slugPreview}
+        onProjectNameChange={projectActions.setProjectName}
+        onClose={projectActions.closeDialog}
+        onSubmit={projectActions.submitDialog}
       />
     </div>
   );
