@@ -1,5 +1,6 @@
 "use client";
 
+import { UserButton, useUser } from "@clerk/nextjs";
 import { useLiveblocksFlow } from "@liveblocks/react-flow";
 import {
   ClientSideSuspense,
@@ -7,8 +8,10 @@ import {
   RoomProvider,
   useCanRedo,
   useCanUndo,
+  useOthers,
   useRedo,
   useUndo,
+  useUpdateMyPresence,
 } from "@liveblocks/react/suspense";
 import {
   Background,
@@ -25,7 +28,7 @@ import {
   getSmoothStepPath,
 } from "@xyflow/react";
 import type { Connection } from "@xyflow/react";
-import type { CSSProperties, DragEvent, KeyboardEvent, ReactNode } from "react";
+import type { CSSProperties, DragEvent, KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Circle,
@@ -44,6 +47,7 @@ import {
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { CanvasTemplate } from "@/components/editor/starter-templates";
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 import type { CanvasEdge, CanvasNode, CanvasNodeShape, CanvasShapeDragPayload } from "@/types/canvas";
 import {
   DEFAULT_CANVAS_NODE_TEXT_COLOR,
@@ -102,6 +106,7 @@ const NODE_RESIZE_CONTROL_POSITIONS = ["top", "right", "bottom", "left"] as cons
 
 const DEFAULT_EDGE_LABEL = "";
 const CANVAS_VIEWPORT_ANIMATION_DURATION = 160;
+const MAX_COLLABORATOR_AVATARS = 5;
 
 function CanvasLoadingState() {
   return (
@@ -782,6 +787,149 @@ function CanvasControlBar({
   );
 }
 
+function getInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+
+  if (!words.length) {
+    return "?";
+  }
+
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("");
+}
+
+function CollaboratorAvatar({
+  name,
+  avatarUrl,
+  color,
+  index,
+}: {
+  name: string;
+  avatarUrl: string | null;
+  color: string;
+  index: number;
+}) {
+  return (
+    <div
+      aria-label={name}
+      title={name}
+      className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-background bg-elevated text-xs font-semibold text-copy-primary shadow-lg ring-2"
+      style={{
+        marginLeft: index === 0 ? 0 : -8,
+        boxShadow: `0 0 0 2px ${color}`,
+        zIndex: MAX_COLLABORATOR_AVATARS - index,
+      }}
+    >
+      {avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span>{getInitials(name)}</span>
+      )}
+    </div>
+  );
+}
+
+function ParticipantAvatarGroup() {
+  const { user } = useUser();
+  const others = useOthers();
+  const collaborators = others.filter((other) => other.id !== user?.id);
+  const visibleCollaborators = collaborators.slice(0, MAX_COLLABORATOR_AVATARS);
+  const overflowCount = Math.max(collaborators.length - MAX_COLLABORATOR_AVATARS, 0);
+
+  return (
+    <div className="pointer-events-auto absolute right-5 top-5 z-10 flex items-center rounded-full border border-surface-border bg-surface/95 px-2 py-2 shadow-2xl backdrop-blur">
+      {visibleCollaborators.length ? (
+        <>
+          <div className="flex items-center pl-1">
+            {visibleCollaborators.map((collaborator, index) => (
+              <CollaboratorAvatar
+                key={collaborator.connectionId}
+                name={collaborator.info.name}
+                avatarUrl={collaborator.info.avatarUrl}
+                color={collaborator.info.cursorColor}
+                index={index}
+              />
+            ))}
+            {overflowCount ? (
+              <div
+                className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-background bg-elevated text-xs font-semibold text-copy-primary shadow-lg ring-2 ring-surface-border"
+                style={{
+                  marginLeft: -8,
+                  zIndex: 0,
+                }}
+              >
+                +{overflowCount}
+              </div>
+            ) : null}
+          </div>
+          <div className="mx-2 h-6 w-px bg-surface-border" />
+        </>
+      ) : null}
+      <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full">
+        <UserButton appearance={clerkAppearance} />
+      </div>
+    </div>
+  );
+}
+
+function RemoteCursors() {
+  const { user } = useUser();
+  const others = useOthers();
+  const collaborators = others.filter(
+    (other) => other.id !== user?.id && other.presence.cursor,
+  );
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-20">
+      {collaborators.map((collaborator) => {
+        const cursor = collaborator.presence.cursor;
+
+        if (!cursor) {
+          return null;
+        }
+
+        const color = collaborator.info.cursorColor;
+
+        return (
+          <div
+            key={collaborator.connectionId}
+            className="absolute left-0 top-0"
+            style={{
+              transform: `translate(${cursor.x}px, ${cursor.y}px)`,
+            }}
+          >
+            <svg
+              aria-hidden="true"
+              className="h-5 w-5 drop-shadow-lg"
+              viewBox="0 0 20 20"
+              fill="none"
+            >
+              <path
+                d="M3 2 L16 10 L10 12 L7 18 Z"
+                fill={color}
+                stroke="rgba(2,6,23,0.78)"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+              />
+            </svg>
+            <div
+              className="ml-4 mt-1 rounded-full px-2.5 py-1 text-xs font-semibold text-background shadow-lg"
+              style={{
+                background: color,
+              }}
+            >
+              {collaborator.info.name}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function cloneTemplateNode(node: CanvasNode): CanvasNode {
   return {
     ...node,
@@ -832,9 +980,11 @@ function SyncedReactFlowCanvas({
   const edgeCounterRef = useRef(0);
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
+  const canvasViewportRef = useRef<HTMLDivElement | null>(null);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(null);
   const [shapePreview, setShapePreview] = useState<ShapePreviewState | null>(null);
+  const updateMyPresence = useUpdateMyPresence();
   const undo = useUndo();
   const redo = useRedo();
   const canUndo = useCanUndo();
@@ -1117,6 +1267,26 @@ function SyncedReactFlowCanvas({
     },
     [onEdgesChange, onNodesChange, reactFlowInstance],
   );
+  const handleCanvasMouseMove = useCallback(
+    (event: MouseEvent) => {
+      const bounds = canvasViewportRef.current?.getBoundingClientRect();
+
+      if (!bounds) {
+        return;
+      }
+
+      updateMyPresence({
+        cursor: {
+          x: event.clientX - bounds.left,
+          y: event.clientY - bounds.top,
+        },
+      });
+    },
+    [updateMyPresence],
+  );
+  const handleCanvasMouseLeave = useCallback(() => {
+    updateMyPresence({ cursor: null });
+  }, [updateMyPresence]);
 
   useKeyboardShortcuts({
     reactFlowInstance,
@@ -1125,7 +1295,12 @@ function SyncedReactFlowCanvas({
   });
 
   return (
-    <div className="relative h-full w-full" onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div
+      ref={canvasViewportRef}
+      className="relative h-full w-full"
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <ReactFlow<CanvasNode, CanvasEdge>
         className="h-full w-full bg-background"
         nodes={nodes}
@@ -1138,6 +1313,8 @@ function SyncedReactFlowCanvas({
         onConnect={handleConnect}
         onReconnect={handleReconnect}
         onDelete={onDelete}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseLeave={handleCanvasMouseLeave}
         connectionMode={ConnectionMode.Loose}
         edgesReconnectable
         fitView
@@ -1149,6 +1326,8 @@ function SyncedReactFlowCanvas({
           color="var(--border-default)"
         />
       </ReactFlow>
+      <RemoteCursors />
+      <ParticipantAvatarGroup />
       <CanvasControlBar
         canZoom={Boolean(reactFlowInstance)}
         canUndo={canUndo}
@@ -1183,7 +1362,7 @@ export function EditorCanvas({
     <div className="h-full w-full overflow-hidden rounded-2xl border border-surface-border bg-background shadow-2xl">
       <CanvasErrorBoundary>
         <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
-          <RoomProvider id={roomId} initialPresence={{ cursor: null, isThinking: false }}>
+          <RoomProvider id={roomId} initialPresence={{ cursor: null, thinking: false }}>
             <ClientSideSuspense fallback={<CanvasLoadingState />}>
               <SyncedReactFlowCanvas
                 isStarterTemplatesOpen={isStarterTemplatesOpen}

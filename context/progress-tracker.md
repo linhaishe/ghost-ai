@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 18 (Starter Template) — complete
+- Feature 19 (Presence Avatars + Cursor) — complete
 
 ## Current Goal
 
-- Starter template library, import modal, navbar entry point, and canvas replacement import flow are implemented.
+- Room-only participant avatars and Liveblocks collaborator cursors are implemented inside the editor canvas view.
 
 ## Completed
 
@@ -30,6 +30,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 16 (22/06/26): Edge Behavior — custom `canvasEdge` renderer added with smooth-step right-angle routing, light arrowed strokes, brighter hover/selected state, wider invisible interaction path, reconnect support, multiple same-node connections, and inline labels positioned with `EdgeLabelRenderer` plus `getSmoothStepPath` label coordinates. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 17 (22/06/26): Canvas Ergonomics — bottom-left pill control bar added with zoom out, fit view, zoom in, undo, and redo controls; zoom actions use the React Flow instance with short animation, undo/redo use Liveblocks history with disabled states, keyboard shortcuts are centralized in `hooks/useKeyboardShortcuts.ts`, editable fields are ignored, and the MiniMap was removed. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 18 (22/06/26): Starter Template — predefined Microservices, CI/CD Pipeline, and Event-Driven System templates added with shared canvas node/edge types and existing color palette; import modal added with screenshot-matched dark cards and lightweight SVG previews; workspace navbar includes a Templates entry point; importing a template replaces existing collaborative canvas nodes and edges, then fits the view. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 19 (22/06/26): Presence Avatars + Cursor — editor canvas now renders a room-only top-right participant group with collaborator avatars, overflow chip, conditional divider, and current Clerk `UserButton`; collaborators exclude the active Clerk user; Liveblocks presence now uses `cursor` plus `thinking`; React Flow mouse movement broadcasts cursor coordinates and mouse leave clears them; remote collaborator cursors render with colored pointer badges. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -79,7 +80,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Collaborator management lives under `/api/projects/[projectId]/collaborators`; listing is available to owners and collaborators, while invite/remove are owner-only.
 - Collaborators continue to be stored by email only in Prisma; Clerk Backend API is used at read time to enrich display names and avatar URLs when a matching Clerk user exists.
 - Share dialog state and collaborator mutations stay in the workspace client shell; project access remains enforced on the server route.
-- Liveblocks application types live in `liveblocks.config.ts`; presence tracks cursor coordinates and `isThinking`, while user metadata contains name, avatar URL, and deterministic cursor color.
+- Liveblocks application types live in `liveblocks.config.ts`; presence tracks cursor coordinates and `thinking`, while user metadata contains name, avatar URL, and deterministic cursor color.
 - Liveblocks node access lives in `lib/liveblocks.ts`; the client is cached in development and lazily initialized so production builds do not require `LIVEBLOCKS_SECRET_KEY` at build time.
 - `/api/liveblocks-auth` uses the project ID as the room ID, trusts `lib/project-access.ts` for authorization, creates missing rooms with private default access, and issues a room-scoped token via `prepareSession`.
 - Canvas types live in `types/canvas.ts`; the base node data shape supports label, color, and shape, with `canvasNode`/`canvasEdge` reserved as the custom type names.
@@ -108,9 +109,18 @@ Update this file whenever the current phase, active feature, or implementation s
 - Starter templates are defined in `components/editor/starter-templates.ts` with shared canvas node/edge types and the existing node color palette.
 - Starter template previews are rendered as lightweight SVG diagrams in `components/editor/starter-templates-modal.tsx`; they calculate bounds from node positions and do not create a React Flow instance.
 - Template imports replace existing synced React Flow nodes and edges through `onNodesChange` and `onEdgesChange`, then call React Flow `fitView`.
+- Participant presence UI is scoped to `EditorCanvas` so shared editor navbar behavior stays unchanged.
+- Liveblocks collaborator presence excludes the active Clerk user ID before rendering avatars or cursors; the current user remains represented by Clerk's `UserButton`.
+- Cursor positions are stored as canvas-viewport coordinates so remote cursor overlays can render without depending on React Flow node/edge state.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/19-presence-avatars-cursor.md`.
+- Read the presence avatars/cursor spec and confirmed navbar behavior must remain unchanged while presence UI lives inside the editor canvas room view.
+- Updated `liveblocks.config.ts` presence typing to use `cursor` and `thinking`.
+- Added a canvas top-right participant group with overlapping collaborator avatars, initials fallback, +N overflow, conditional divider, and current Clerk `UserButton`.
+- Added React Flow mouse move/leave presence broadcasting and remote collaborator cursor rendering with colored pointer badges.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/18-starter-template.md`.
 - Read the starter template spec and reviewed `context/screenshot/starter-template.png` for modal layout, dark card styling, preview proportions, and import button treatment.
 - Added `components/editor/starter-templates.ts` with Microservices, CI/CD Pipeline, and Event-Driven System template data.

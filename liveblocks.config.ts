@@ -9,7 +9,7 @@ declare global {
         x: number;
         y: number;
       } | null;
-      isThinking: boolean;
+      thinking: boolean;
     };
 
     Storage: {
