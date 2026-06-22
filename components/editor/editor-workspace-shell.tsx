@@ -1,8 +1,9 @@
 "use client";
 
-import { Bot, Download, Share2, Sparkles } from "lucide-react";
+import { Bot, Download, Share2 } from "lucide-react";
 import { useState } from "react";
 
+import { AiSidebar } from "@/components/editor/ai-sidebar";
 import { EditorCanvas } from "@/components/editor/editor-canvas";
 import { EditorNavbar } from "@/components/editor/editor-navbar";
 import { ProjectDialogs } from "@/components/editor/project-dialogs";
@@ -11,7 +12,6 @@ import type { EditorProject } from "@/components/editor/project-types";
 import { ShareDialog } from "@/components/editor/share-dialog";
 import { Button } from "@/components/ui/button";
 import { useProjectActions } from "@/hooks/use-project-actions";
-import { cn } from "@/lib/utils";
 
 interface EditorWorkspaceShellProps {
   roomId: string;
@@ -90,45 +90,7 @@ export function EditorWorkspaceShell({
           onStarterTemplatesOpenChange={setIsStarterTemplatesOpen}
         />
 
-        <aside
-          className={cn(
-            "absolute bottom-4 right-4 top-4 z-20 flex w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-surface-border bg-surface/95 shadow-2xl backdrop-blur transition-transform duration-200 ease-out",
-            isAiSidebarOpen ? "translate-x-0" : "translate-x-[calc(100%+2rem)]",
-          )}
-        >
-          <div className="flex items-center justify-between border-b border-surface-border px-5 py-5">
-            <div>
-              <p className="text-sm font-semibold text-copy-primary">AI Copilot</p>
-              <p className="mt-1 text-sm text-copy-muted">Placeholder panel</p>
-            </div>
-            <Sparkles className="h-5 w-5 text-ai-text" />
-          </div>
-
-          <div className="flex min-h-0 flex-1 flex-col justify-between gap-6 p-5">
-            <div className="rounded-2xl border border-surface-border bg-elevated/70 p-5">
-              <div className="flex gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ai/20 text-ai-text">
-                  <Bot className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="font-semibold text-copy-primary">Chat surface pending</p>
-                  <p className="mt-2 text-sm leading-6 text-copy-muted">
-                    The toggle is wired. Messaging and generation are intentionally out of scope here.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-dashed border-surface-border bg-base/70 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-copy-faint">
-                Future Hooks
-              </p>
-              <p className="mt-5 text-sm leading-7 text-copy-muted">
-                Prompt composer, run status, and architecture guidance will attach to this sidebar.
-              </p>
-            </div>
-          </div>
-        </aside>
+        <AiSidebar isOpen={isAiSidebarOpen} onClose={() => setIsAiSidebarOpen(false)} />
       </main>
 
       <ProjectDialogs

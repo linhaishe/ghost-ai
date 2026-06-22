@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 19 (Presence Avatars + Cursor) — complete
+- Feature 20 (AI Sidebar Shell) — complete
 
 ## Current Goal
 
-- Room-only participant avatars and Liveblocks collaborator cursors are implemented inside the editor canvas view.
+- Existing floating AI sidebar is separated into a tabbed chat/spec UI component.
 
 ## Completed
 
@@ -31,6 +31,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 17 (22/06/26): Canvas Ergonomics — bottom-left pill control bar added with zoom out, fit view, zoom in, undo, and redo controls; zoom actions use the React Flow instance with short animation, undo/redo use Liveblocks history with disabled states, keyboard shortcuts are centralized in `hooks/useKeyboardShortcuts.ts`, editable fields are ignored, and the MiniMap was removed. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 18 (22/06/26): Starter Template — predefined Microservices, CI/CD Pipeline, and Event-Driven System templates added with shared canvas node/edge types and existing color palette; import modal added with screenshot-matched dark cards and lightweight SVG previews; workspace navbar includes a Templates entry point; importing a template replaces existing collaborative canvas nodes and edges, then fits the view. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 19 (22/06/26): Presence Avatars + Cursor — editor canvas now renders a room-only top-right participant group with collaborator avatars, overflow chip, conditional divider, and current Clerk `UserButton`; collaborators exclude the active Clerk user; Liveblocks presence now uses `cursor` plus `thinking`; React Flow mouse movement broadcasts cursor coordinates and mouse leave clears them; remote collaborator cursors render with colored pointer badges. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 20 (22/06/26): AI Sidebar Shell — floating AI sidebar extracted into `components/editor/ai-sidebar.tsx` while preserving parent-controlled open/close and right-side slide animation; header, close button, AI Architect and Specs tabs, chat empty state, starter prompt chips, auto-resizing prompt textarea, send behavior, Generate Spec button, and static demo spec card added. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -112,9 +113,18 @@ Update this file whenever the current phase, active feature, or implementation s
 - Participant presence UI is scoped to `EditorCanvas` so shared editor navbar behavior stays unchanged.
 - Liveblocks collaborator presence excludes the active Clerk user ID before rendering avatars or cursors; the current user remains represented by Clerk's `UserButton`.
 - Cursor positions are stored as canvas-viewport coordinates so remote cursor overlays can render without depending on React Flow node/edge state.
+- AI sidebar UI lives in `components/editor/ai-sidebar.tsx`; `EditorWorkspaceShell` continues to own open/close state and only passes control props.
+- Feature-specific token aliases `primary-text`, `muted-text`, and `accent-text` map to existing project CSS variables in `app/globals.css`.
+- AI sidebar remains UI-only for now; prompt submission updates local demo messages and does not call backend, Liveblocks, or AI services.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/20-ai-sidebar-shell.md`.
+- Read the AI sidebar shell spec and confirmed scope is UI-only: preserve existing floating slide behavior, no backend, no Liveblocks, and no AI generation logic.
+- Added token aliases in `app/globals.css` for the spec's text utility names while preserving existing project color values.
+- Added `components/editor/ai-sidebar.tsx` with header, close button, shadcn Tabs, AI Architect empty/chat state, starter prompt chips, auto-resizing Textarea, and Specs tab demo card.
+- Replaced the inline AI sidebar placeholder in `EditorWorkspaceShell` with the new `AiSidebar` component while keeping the existing toggle state and slide-in behavior.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/19-presence-avatars-cursor.md`.
 - Read the presence avatars/cursor spec and confirmed navbar behavior must remain unchanged while presence UI lives inside the editor canvas room view.
 - Updated `liveblocks.config.ts` presence typing to use `cursor` and `thinking`.

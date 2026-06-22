@@ -18,6 +18,9 @@
   --color-copy-secondary: var(--text-secondary);
   --color-copy-muted: var(--text-muted);
   --color-copy-faint: var(--text-faint);
+  --color-primary-text: var(--text-primary);
+  --color-muted-text: var(--text-muted);
+  --color-accent-text: var(--accent-ai-text);
   --color-brand: var(--accent-primary);
   --color-accent-dim: var(--accent-primary-dim);
   --color-ai: var(--accent-ai);
