@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 14 (Node Editing) — complete
+- Feature 15 (Node Color Toolbar) — complete
 
 ## Current Goal
 
-- Canvas nodes support selected-node resizing and synced inline label editing.
+- Selected nodes can change predefined background/text color pairs directly on the canvas.
 
 ## Completed
 
@@ -26,6 +26,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 12 (22/06/26): Shape Panel — bottom-center draggable shape toolbar added for rectangle, diamond, circle, pill, cylinder, and hexagon; drop handling converts screen coordinates to canvas coordinates and creates `canvasNode` nodes with empty labels, default color, shape data, default size, and generated IDs. Basic custom node rendering displays new nodes as bordered rectangles. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 13 (22/06/26): Node Shape Rendering — custom node renderer now displays rectangle, pill, and circle with CSS shapes, diamond, hexagon, and cylinder with scalable SVG shapes, selected nodes use brighter strokes, and shape dragging shows a cursor-following ghost preview using the same shape and default size as drop creation. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 14 (22/06/26): Node Editing — selected canvas nodes show subtle React Flow resize handles with minimum size constraints, node labels can be edited inline by double-clicking the centered label area, empty labels show centered placeholder text, textarea interactions avoid canvas dragging/panning, and label edits sync through the existing Liveblocks React Flow node state. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 15 (22/06/26): Node Color Toolbar — `NODE_COLORS` palette added from `ui-context.md`, canvas node data now stores background and text colors, selected nodes show a floating swatch toolbar above the node, active swatches are highlighted, hover glow uses the paired text color, and swatch clicks update node colors through the existing Liveblocks React Flow state. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -90,9 +91,23 @@ Update this file whenever the current phase, active feature, or implementation s
 - Node resizing uses React Flow's `NodeResizer` inside the custom node renderer and relies on the existing `useLiveblocksFlow` dimensions change handling.
 - Inline label edits replace the current node through `onNodesChange`, keeping label updates inside the synced Liveblocks flow state.
 - Text editing surfaces use `nodrag`/`nopan` plus event propagation guards so editing does not trigger canvas drag or pan.
+- Node color themes live in `types/canvas.ts` as `NODE_COLORS`, with paired background and text colors from `context/ui-context.md`.
+- Canvas nodes store `color` as their fill/background and `textColor` as the paired label/stroke accent, with defaults matching the neutral palette.
+- The selected-node color toolbar is rendered inside the custom node and updates color data via `onNodesChange` replace operations, with no server calls.
+- Custom canvas nodes render four side connection handles and four side resize controls so controls sit on shape edges/vertices instead of a rectangular bounding frame.
+- Edge creation bypasses React Flow's default duplicate-edge guard by adding uniquely identified edges through `onEdgesChange`; existing edges are reconnectable through `onReconnect`.
 
 ## Session Notes
 
+- Updated edge creation to allow multiple connections between the same shapes/handles and added edge reconnection support. Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
+- Fixed custom node controls so connection handles appear on all four sides and selected-node resize controls use four edge controls instead of the default rectangular `NodeResizer` frame. Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
+- Started implementation of `context/feature-specs/15-nodes-color-toolbar.md`.
+- Read `context/ui-context.md` and confirmed the node palette should be defined as `NODE_COLORS` in `types/canvas.ts`.
+- Added `NODE_COLORS`, default node text color, and `CanvasNodeData.textColor` in `types/canvas.ts`.
+- Updated shape rendering so node fill uses `data.color` and labels/strokes use `data.textColor`, including fallback support for older nodes.
+- Added a floating selected-node color toolbar with one swatch per palette pair, active swatch styling, tight hover glow, and drag/pan interaction guards.
+- Wired swatch clicks to replace the selected node's `color` and `textColor` through the existing Liveblocks React Flow state.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/14-node-editing.md`.
 - Read the node editing spec and confirmed the scope is resize handles plus inline label editing only.
 - Added shared minimum node size and wired selected-node `NodeResizer` handles into the custom node renderer.

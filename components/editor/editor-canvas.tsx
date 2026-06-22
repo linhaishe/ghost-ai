@@ -6,10 +6,14 @@ import {
   Background,
   BackgroundVariant,
   ConnectionMode,
+  Handle,
   MiniMap,
-  NodeResizer,
+  NodeResizeControl,
+  Position,
+  ResizeControlVariant,
   ReactFlow,
 } from "@xyflow/react";
+import type { Connection } from "@xyflow/react";
 import type { CSSProperties, DragEvent, KeyboardEvent, ReactNode } from "react";
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -23,11 +27,14 @@ import {
 
 import type { CanvasEdge, CanvasNode, CanvasNodeShape, CanvasShapeDragPayload } from "@/types/canvas";
 import {
+  DEFAULT_CANVAS_NODE_TEXT_COLOR,
   CANVAS_NODE_TYPE,
   CANVAS_SHAPE_DEFAULT_SIZES,
   CANVAS_SHAPE_DRAG_TYPE,
   CANVAS_NODE_MIN_SIZE,
   DEFAULT_CANVAS_NODE_COLOR,
+  NODE_COLORS,
+  type CanvasNodeColorPair,
 } from "@/types/canvas";
 import type { NodeProps, ReactFlowInstance } from "@xyflow/react";
 
@@ -61,6 +68,15 @@ const SHAPE_TOOLS = [
   icon: typeof RectangleHorizontal;
 }[];
 
+const NODE_HANDLE_POSITIONS = [
+  Position.Top,
+  Position.Right,
+  Position.Bottom,
+  Position.Left,
+] as const;
+
+const NODE_RESIZE_CONTROL_POSITIONS = ["top", "right", "bottom", "left"] as const;
+
 function CanvasLoadingState() {
   return (
     <div className="flex h-full w-full items-center justify-center bg-background text-sm text-copy-muted">
@@ -82,15 +98,20 @@ function CanvasErrorState() {
   );
 }
 
-function getRestingStroke(color: string) {
-  return `color-mix(in srgb, ${color} 48%, transparent)`;
+function getRestingStroke(textColor: string) {
+  return `color-mix(in srgb, ${textColor} 48%, transparent)`;
 }
 
-function getShapeStyle(color: string, selected = false): CSSProperties {
+function getShapeStyle(color: string, textColor: string, selected = false): CSSProperties {
   return {
-    "--shape-color": color,
-    "--shape-stroke": selected ? color : getRestingStroke(color),
+    "--shape-fill": color,
+    "--shape-text": textColor,
+    "--shape-stroke": selected ? textColor : getRestingStroke(textColor),
   } as CSSProperties;
+}
+
+function getNodeTextColor(data: CanvasNode["data"]) {
+  return data.textColor || DEFAULT_CANVAS_NODE_TEXT_COLOR;
 }
 
 function hideNativeDragPreview(dataTransfer: DataTransfer) {
@@ -117,7 +138,7 @@ function ShapeLabel({
 
   return (
     <span
-      className="relative z-10 max-w-[calc(100%-1.5rem)] truncate text-center text-sm font-medium text-copy-primary data-[placeholder=true]:text-copy-faint"
+      className="relative z-10 max-w-[calc(100%-1.5rem)] truncate text-center text-sm font-medium text-[color:var(--shape-text)] data-[placeholder=true]:opacity-55"
       data-placeholder={!label && Boolean(placeholder)}
     >
       {displayLabel}
@@ -130,18 +151,20 @@ function SvgShapeShell({
   label,
   placeholder,
   color,
+  textColor,
   selected,
 }: {
   children: ReactNode;
   label: string;
   placeholder?: string;
   color: string;
+  textColor: string;
   selected?: boolean;
 }) {
   return (
     <div
-      className="relative flex h-full w-full items-center justify-center text-copy-primary drop-shadow-lg"
-      style={getShapeStyle(color, selected)}
+      className="relative flex h-full w-full items-center justify-center drop-shadow-lg"
+      style={getShapeStyle(color, textColor, selected)}
     >
       <svg
         aria-hidden="true"
@@ -161,20 +184,23 @@ function CanvasShape({
   label,
   placeholder,
   color,
+  textColor,
   selected,
 }: {
   shape: CanvasNodeShape;
   label: string;
   placeholder?: string;
   color: string;
+  textColor: string;
   selected?: boolean;
 }) {
   if (shape === "rectangle" || shape === "pill" || shape === "circle") {
     return (
       <div
-        className="flex h-full w-full items-center justify-center border bg-surface shadow-lg"
+        className="flex h-full w-full items-center justify-center border shadow-lg"
         style={{
-          ...getShapeStyle(color, selected),
+          ...getShapeStyle(color, textColor, selected),
+          background: "var(--shape-fill)",
           borderColor: "var(--shape-stroke)",
           borderRadius:
             shape === "circle" ? "9999px" : shape === "pill" ? "9999px" : "0.75rem",
@@ -187,10 +213,16 @@ function CanvasShape({
 
   if (shape === "diamond") {
     return (
-      <SvgShapeShell label={label} placeholder={placeholder} color={color} selected={selected}>
+      <SvgShapeShell
+        label={label}
+        placeholder={placeholder}
+        color={color}
+        textColor={textColor}
+        selected={selected}
+      >
         <polygon
           points="50 2 98 50 50 98 2 50"
-          fill="var(--bg-surface)"
+          fill="var(--shape-fill)"
           stroke="var(--shape-stroke)"
           strokeLinejoin="round"
           strokeWidth="1.5"
@@ -202,10 +234,16 @@ function CanvasShape({
 
   if (shape === "hexagon") {
     return (
-      <SvgShapeShell label={label} placeholder={placeholder} color={color} selected={selected}>
+      <SvgShapeShell
+        label={label}
+        placeholder={placeholder}
+        color={color}
+        textColor={textColor}
+        selected={selected}
+      >
         <polygon
           points="25 3 75 3 98 50 75 97 25 97 2 50"
-          fill="var(--bg-surface)"
+          fill="var(--shape-fill)"
           stroke="var(--shape-stroke)"
           strokeLinejoin="round"
           strokeWidth="1.5"
@@ -216,10 +254,16 @@ function CanvasShape({
   }
 
   return (
-    <SvgShapeShell label={label} placeholder={placeholder} color={color} selected={selected}>
+    <SvgShapeShell
+      label={label}
+      placeholder={placeholder}
+      color={color}
+      textColor={textColor}
+      selected={selected}
+    >
       <path
         d="M8 18 C8 10 92 10 92 18 L92 82 C92 90 8 90 8 82 Z"
-        fill="var(--bg-surface)"
+        fill="var(--shape-fill)"
         stroke="var(--shape-stroke)"
         strokeLinejoin="round"
         strokeWidth="1.5"
@@ -230,7 +274,7 @@ function CanvasShape({
         cy="18"
         rx="42"
         ry="10"
-        fill="var(--bg-surface)"
+        fill="var(--shape-fill)"
         stroke="var(--shape-stroke)"
         strokeWidth="1.5"
         vectorEffect="non-scaling-stroke"
@@ -272,10 +316,13 @@ function CanvasNodeRenderer({
   data,
   selected,
   onLabelChange,
+  onColorChange,
 }: NodeProps<CanvasNode> & {
   onLabelChange: (nodeId: string, label: string) => void;
+  onColorChange: (nodeId: string, colorPair: CanvasNodeColorPair) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const textColor = getNodeTextColor(data);
   const closeEditing = useCallback(() => {
     setIsEditing(false);
   }, []);
@@ -288,23 +335,16 @@ function CanvasNodeRenderer({
   }, []);
 
   return (
-    <div className="relative h-full w-full">
-      <NodeResizer
-        isVisible={selected}
-        minWidth={CANVAS_NODE_MIN_SIZE.width}
-        minHeight={CANVAS_NODE_MIN_SIZE.height}
-        color="var(--accent-primary)"
-        handleStyle={{
-          width: 8,
-          height: 8,
-          borderRadius: 9999,
-          border: "1px solid var(--border-default)",
-          background: "var(--bg-elevated)",
-        }}
-        lineStyle={{
-          borderColor: "color-mix(in srgb, var(--accent-primary) 70%, transparent)",
-        }}
-      />
+    <div className="group/node relative h-full w-full">
+      {selected ? (
+        <NodeColorToolbar
+          activeColor={data.color}
+          activeTextColor={textColor}
+          onColorSelect={(colorPair) => onColorChange(id, colorPair)}
+        />
+      ) : null}
+      <ShapeConnectionHandles textColor={textColor} />
+      <ShapeResizeControls isVisible={selected} textColor={textColor} />
       <div
         className="h-full w-full"
         onDoubleClick={(event) => {
@@ -317,6 +357,7 @@ function CanvasNodeRenderer({
           label={isEditing ? "" : data.label}
           placeholder={isEditing ? undefined : "Label"}
           color={data.color}
+          textColor={textColor}
           selected={selected}
         />
       </div>
@@ -332,10 +373,114 @@ function CanvasNodeRenderer({
           onPointerDown={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
           onDoubleClick={(event) => event.stopPropagation()}
-          className="nodrag nopan absolute left-1/2 top-1/2 z-20 max-h-[calc(100%-1rem)] w-[calc(100%-1.5rem)] -translate-x-1/2 -translate-y-1/2 resize-none overflow-hidden border-none bg-transparent p-0 text-center text-sm font-medium leading-5 text-copy-primary placeholder:text-copy-faint outline-none"
+          className="nodrag nopan absolute left-1/2 top-1/2 z-20 max-h-[calc(100%-1rem)] w-[calc(100%-1.5rem)] -translate-x-1/2 -translate-y-1/2 resize-none overflow-hidden border-none bg-transparent p-0 text-center text-sm font-medium leading-5 placeholder:opacity-55 outline-none"
+          style={{
+            color: textColor,
+          }}
           rows={2}
         />
       ) : null}
+    </div>
+  );
+}
+
+function ShapeConnectionHandles({ textColor }: { textColor: string }) {
+  return (
+    <>
+      {NODE_HANDLE_POSITIONS.map((position) => (
+        <Handle
+          key={position}
+          id={position}
+          type="source"
+          position={position}
+          className="!h-2.5 !w-2.5 !border !border-background !bg-copy-primary !opacity-0 !transition group-hover/node:!opacity-100"
+          style={{
+            boxShadow: `0 0 0 1px ${textColor}`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+function ShapeResizeControls({
+  isVisible,
+  textColor,
+}: {
+  isVisible: boolean;
+  textColor: string;
+}) {
+  if (!isVisible) {
+    return null;
+  }
+
+  return (
+    <>
+      {NODE_RESIZE_CONTROL_POSITIONS.map((position) => (
+        <NodeResizeControl
+          key={position}
+          position={position}
+          variant={ResizeControlVariant.Handle}
+          minWidth={CANVAS_NODE_MIN_SIZE.width}
+          minHeight={CANVAS_NODE_MIN_SIZE.height}
+          className="nodrag nopan !h-2.5 !w-2.5 !rounded-full !border !border-background !bg-elevated"
+          style={{
+            boxShadow: `0 0 0 1px ${textColor}`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+function NodeColorToolbar({
+  activeColor,
+  activeTextColor,
+  onColorSelect,
+}: {
+  activeColor: string;
+  activeTextColor: string;
+  onColorSelect: (colorPair: CanvasNodeColorPair) => void;
+}) {
+  return (
+    <div
+      className="nodrag nopan absolute bottom-full left-1/2 z-30 mb-3 flex -translate-x-1/2 items-center gap-1 rounded-full border border-surface-border bg-surface/95 px-2 py-1.5 shadow-xl backdrop-blur"
+      onPointerDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+    >
+      {NODE_COLORS.map((colorPair) => {
+        const isActive =
+          colorPair.color === activeColor && colorPair.textColor === activeTextColor;
+
+        return (
+          <button
+            key={colorPair.name}
+            type="button"
+            aria-label={`Use ${colorPair.name} node color`}
+            title={colorPair.name}
+            onClick={(event) => {
+              event.stopPropagation();
+              onColorSelect(colorPair);
+            }}
+            className="group flex size-6 items-center justify-center rounded-full transition"
+            style={{
+              boxShadow: isActive ? `0 0 0 2px ${colorPair.textColor}` : undefined,
+            }}
+          >
+            <span
+              className="block size-4 rounded-full border transition group-hover:shadow-[0_0_0_3px_var(--swatch-glow)]"
+              style={
+                {
+                  "--swatch-glow": `color-mix(in srgb, ${colorPair.textColor} 28%, transparent)`,
+                  background: colorPair.color,
+                  borderColor: colorPair.textColor,
+                } as CSSProperties
+              }
+            />
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -358,6 +503,7 @@ function ShapeDragPreview({ preview }: { preview: ShapePreviewState | null }) {
         shape={preview.shape}
         label=""
         color={DEFAULT_CANVAS_NODE_COLOR}
+        textColor={DEFAULT_CANVAS_NODE_TEXT_COLOR}
         selected
       />
     </div>
@@ -414,7 +560,7 @@ function ShapePanel({
 }
 
 function SyncedReactFlowCanvas() {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
+  const { nodes, edges, onNodesChange, onEdgesChange, onDelete } =
     useLiveblocksFlow<CanvasNode, CanvasEdge>({
       suspense: true,
       nodes: {
@@ -425,6 +571,7 @@ function SyncedReactFlowCanvas() {
       },
     });
   const nodeCounterRef = useRef(0);
+  const edgeCounterRef = useRef(0);
   const nodesRef = useRef(nodes);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(null);
@@ -432,8 +579,8 @@ function SyncedReactFlowCanvas() {
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
-  const handleNodeLabelChange = useCallback(
-    (nodeId: string, label: string) => {
+  const replaceNodeData = useCallback(
+    (nodeId: string, dataPatch: Partial<CanvasNode["data"]>) => {
       const currentNode = nodesRef.current.find((node) => node.id === nodeId);
 
       if (!currentNode) {
@@ -448,7 +595,7 @@ function SyncedReactFlowCanvas() {
             ...currentNode,
             data: {
               ...currentNode.data,
-              label,
+              ...dataPatch,
             },
           },
         },
@@ -456,13 +603,32 @@ function SyncedReactFlowCanvas() {
     },
     [onNodesChange],
   );
+  const handleNodeLabelChange = useCallback(
+    (nodeId: string, label: string) => {
+      replaceNodeData(nodeId, { label });
+    },
+    [replaceNodeData],
+  );
+  const handleNodeColorChange = useCallback(
+    (nodeId: string, colorPair: CanvasNodeColorPair) => {
+      replaceNodeData(nodeId, {
+        color: colorPair.color,
+        textColor: colorPair.textColor,
+      });
+    },
+    [replaceNodeData],
+  );
   const nodeTypes = useMemo(
     () => ({
       [CANVAS_NODE_TYPE]: (props: NodeProps<CanvasNode>) => (
-        <CanvasNodeRenderer {...props} onLabelChange={handleNodeLabelChange} />
+        <CanvasNodeRenderer
+          {...props}
+          onLabelChange={handleNodeLabelChange}
+          onColorChange={handleNodeColorChange}
+        />
       ),
     }),
-    [handleNodeLabelChange],
+    [handleNodeColorChange, handleNodeLabelChange],
   );
   const handleDragOver = useCallback((event: DragEvent) => {
     event.preventDefault();
@@ -506,6 +672,7 @@ function SyncedReactFlowCanvas() {
         data: {
           label: "",
           color: DEFAULT_CANVAS_NODE_COLOR,
+          textColor: DEFAULT_CANVAS_NODE_TEXT_COLOR,
           shape: payload.shape,
         },
         style: {
@@ -517,6 +684,43 @@ function SyncedReactFlowCanvas() {
       onNodesChange([{ type: "add", item: newNode }]);
     },
     [onNodesChange, reactFlowInstance],
+  );
+  const handleConnect = useCallback(
+    (connection: Connection) => {
+      edgeCounterRef.current += 1;
+
+      const newEdge: CanvasEdge = {
+        id: `edge-${Date.now()}-${edgeCounterRef.current}`,
+        source: connection.source,
+        target: connection.target,
+        sourceHandle: connection.sourceHandle,
+        targetHandle: connection.targetHandle,
+        data: {},
+        interactionWidth: 18,
+        reconnectable: true,
+      };
+
+      onEdgesChange([{ type: "add", item: newEdge }]);
+    },
+    [onEdgesChange],
+  );
+  const handleReconnect = useCallback(
+    (oldEdge: CanvasEdge, newConnection: Connection) => {
+      onEdgesChange([
+        {
+          type: "replace",
+          id: oldEdge.id,
+          item: {
+            ...oldEdge,
+            source: newConnection.source,
+            target: newConnection.target,
+            sourceHandle: newConnection.sourceHandle,
+            targetHandle: newConnection.targetHandle,
+          },
+        },
+      ]);
+    },
+    [onEdgesChange],
   );
   const startShapePreview = useCallback((payload: CanvasShapeDragPayload, x: number, y: number) => {
     setShapePreview({ ...payload, x, y });
@@ -538,9 +742,11 @@ function SyncedReactFlowCanvas() {
         onInit={setReactFlowInstance}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onConnect={handleConnect}
+        onReconnect={handleReconnect}
         onDelete={onDelete}
         connectionMode={ConnectionMode.Loose}
+        edgesReconnectable
         fitView
       >
         <MiniMap
