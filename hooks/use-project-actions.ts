@@ -72,7 +72,7 @@ export function useProjectActions({ activeProjectId }: UseProjectActionsOptions 
     setProjectName("");
   }
 
-  async function createProject() {
+async function createProject() {
     const response = await fetch("/api/projects", {
       method: "POST",
       headers: {
@@ -88,8 +88,8 @@ export function useProjectActions({ activeProjectId }: UseProjectActionsOptions 
       throw new Error("Failed to create project.");
     }
 
-    router.push(`/editor/${slugPreview}`);
-    router.refresh();
+    const { project } = (await response.json()) as { project: { id: string } };
+    router.push(`/editor/${project.id}`);
   }
 
   async function renameProject(project: EditorProject) {
@@ -121,7 +121,6 @@ export function useProjectActions({ activeProjectId }: UseProjectActionsOptions 
 
     if (activeProjectId === project.id) {
       router.push("/editor");
-      router.refresh();
       return;
     }
 

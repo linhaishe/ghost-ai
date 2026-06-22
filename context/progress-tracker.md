@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 07 (Wire Editor Home) — complete
+- Feature 08 (Editor Workspace Shell) — complete
 
 ## Current Goal
 
-- Editor home now uses server-loaded project data and API-backed project actions.
+- `/editor/[roomId]` now renders a server-checked workspace shell with current project context.
 
 ## Completed
 
@@ -19,6 +19,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 05 (21/06/26): Prisma Project Models — Project and ProjectCollaborator models added with status enum, relations, indexes, unique collaborator constraint, cascade delete, Prisma singleton added with Accelerate/direct adapter branching, first migration applied, and Prisma client generated. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 06 (22/06/26): Project API Routes — backend-only REST endpoints added for listing, creating, renaming, and deleting projects; routes use Clerk user IDs as project owners, default missing create names to `Untitled Project`, enforce owner-only rename/delete, and return explicit `401`/`403` responses. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 07 (22/06/26): Wire Editor Home — `/editor` fetches owned/shared project data server-side, the sidebar uses real project lists, project dialogs are backed by `POST`/`PATCH`/`DELETE` project API calls, create generates a slug-plus-suffix room ID aligned with the project ID, and create/delete navigate or refresh as required. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 08 (22/06/26): Editor Workspace Shell — `/editor/[roomId]` server component added with Clerk identity lookup and project access checks, unauthorized/missing projects render `AccessDenied`, workspace shell renders project-name navbar, share and AI sidebar controls, highlighted project sidebar, central canvas placeholder, and right AI chat placeholder. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -61,10 +62,20 @@ Update this file whenever the current phase, active feature, or implementation s
 - Editor project data is loaded in server components through `lib/project-data.ts`; client components receive already-shaped owned/shared lists.
 - Editor project view models use the project ID as the sidebar slug because new project IDs are aligned with Liveblocks room IDs.
 - Project mutations are centralized in `hooks/use-project-actions.ts`; create navigates to `/editor/{projectId}`, rename refreshes, and deleting the active workspace redirects to `/editor`.
-- `/editor/[projectId]` renders the same editor shell as `/editor` and passes the active workspace ID to client project actions.
+- `/editor/[roomId]` performs server-side access checks before rendering a dedicated workspace shell.
+- Project access checks live in `lib/project-access.ts` and allow owners or collaborators matching the current user's primary email.
+- `AccessDenied` is used for non-existent projects and authenticated users without access.
+- Workspace layout is client-rendered after access passes, so sidebar toggles, AI sidebar toggle, and project dialogs remain interactive while server data remains preloaded.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/08-editor-workspace-shell.md`.
+- Added `lib/project-access.ts` for current Clerk identity lookup and owner/collaborator project access checks.
+- Added `components/editor/access-denied.tsx` for missing or unauthorized workspace access.
+- Added `components/editor/editor-workspace-shell.tsx` with project-name navbar, share action placeholder, AI sidebar toggle, highlighted project sidebar, canvas placeholder, and AI chat placeholder.
+- Replaced `/editor/[projectId]` with `/editor/[roomId]` and wired the page to redirect unauthenticated users to `/sign-in`, render `AccessDenied` for unavailable projects, and render the workspace shell when access is valid.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
+- Fixed project create navigation by routing to the API-returned project ID and removing the immediate `router.refresh()` after `router.push()`; active workspace delete navigation now also avoids push-plus-refresh ordering issues.
 - Started implementation of `context/feature-specs/07-wire-editor-home.md`.
 - Added `lib/project-data.ts` to load owned projects by Clerk user ID and shared projects by collaborator email on the server.
 - Replaced mock editor shell data with server-provided owned/shared project lists and added `/editor/[projectId]` for workspace navigation.
