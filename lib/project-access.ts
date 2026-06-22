@@ -57,3 +57,42 @@ export async function getAccessibleProject(roomId: string, identity: CurrentProj
     },
   });
 }
+
+export async function getProjectAccessRole(roomId: string, identity: CurrentProjectIdentity) {
+  const project = await prisma.project.findUnique({
+    where: {
+      id: roomId,
+    },
+    select: {
+      id: true,
+      ownerId: true,
+      collaborators: {
+        where: identity.primaryEmail
+          ? {
+              email: identity.primaryEmail,
+            }
+          : {
+              email: "__no_email__",
+            },
+        select: {
+          id: true,
+        },
+        take: 1,
+      },
+    },
+  });
+
+  if (!project) {
+    return null;
+  }
+
+  if (project.ownerId === identity.userId) {
+    return "owner" as const;
+  }
+
+  if (project.collaborators.length > 0) {
+    return "collaborator" as const;
+  }
+
+  return null;
+}

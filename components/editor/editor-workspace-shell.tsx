@@ -7,6 +7,7 @@ import { EditorNavbar } from "@/components/editor/editor-navbar";
 import { ProjectDialogs } from "@/components/editor/project-dialogs";
 import { ProjectSidebar } from "@/components/editor/project-sidebar";
 import type { EditorProject } from "@/components/editor/project-types";
+import { ShareDialog } from "@/components/editor/share-dialog";
 import { Button } from "@/components/ui/button";
 import { useProjectActions } from "@/hooks/use-project-actions";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ export function EditorWorkspaceShell({
 }: EditorWorkspaceShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(true);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const projectActions = useProjectActions({ activeProjectId: roomId });
 
   return (
@@ -36,7 +38,12 @@ export function EditorWorkspaceShell({
         centerContent={projectName}
         rightContent={
           <>
-            <Button variant="ghost" size="sm" type="button">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => setIsShareDialogOpen(true)}
+            >
               <Share2 className="h-4 w-4" />
               Share
             </Button>
@@ -136,6 +143,13 @@ export function EditorWorkspaceShell({
         onProjectNameChange={projectActions.setProjectName}
         onClose={projectActions.closeDialog}
         onSubmit={projectActions.submitDialog}
+      />
+
+      <ShareDialog
+        isOpen={isShareDialogOpen}
+        projectId={roomId}
+        projectName={projectName}
+        onClose={() => setIsShareDialogOpen(false)}
       />
     </div>
   );

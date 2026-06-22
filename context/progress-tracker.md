@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 08 (Editor Workspace Shell) — complete
+- Feature 09 (Share Dialog) — complete
 
 ## Current Goal
 
-- `/editor/[roomId]` now renders a server-checked workspace shell with current project context.
+- Workspace share dialog is implemented with collaborator listing, owner-managed invites/removals, link copy feedback, and Clerk user enrichment.
 
 ## Completed
 
@@ -20,6 +20,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 06 (22/06/26): Project API Routes — backend-only REST endpoints added for listing, creating, renaming, and deleting projects; routes use Clerk user IDs as project owners, default missing create names to `Untitled Project`, enforce owner-only rename/delete, and return explicit `401`/`403` responses. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 07 (22/06/26): Wire Editor Home — `/editor` fetches owned/shared project data server-side, the sidebar uses real project lists, project dialogs are backed by `POST`/`PATCH`/`DELETE` project API calls, create generates a slug-plus-suffix room ID aligned with the project ID, and create/delete navigate or refresh as required. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 08 (22/06/26): Editor Workspace Shell — `/editor/[roomId]` server component added with Clerk identity lookup and project access checks, unauthorized/missing projects render `AccessDenied`, workspace shell renders project-name navbar, share and AI sidebar controls, highlighted project sidebar, central canvas placeholder, and right AI chat placeholder. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 09 (22/06/26): Share Dialog — workspace Share button opens a dialog with project link copy feedback, collaborator listing enriched from Clerk user data, owner-only invite/remove actions, and collaborator read-only mode. Collaborator API route added with server-side access checks. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -66,9 +67,18 @@ Update this file whenever the current phase, active feature, or implementation s
 - Project access checks live in `lib/project-access.ts` and allow owners or collaborators matching the current user's primary email.
 - `AccessDenied` is used for non-existent projects and authenticated users without access.
 - Workspace layout is client-rendered after access passes, so sidebar toggles, AI sidebar toggle, and project dialogs remain interactive while server data remains preloaded.
+- Collaborator management lives under `/api/projects/[projectId]/collaborators`; listing is available to owners and collaborators, while invite/remove are owner-only.
+- Collaborators continue to be stored by email only in Prisma; Clerk Backend API is used at read time to enrich display names and avatar URLs when a matching Clerk user exists.
+- Share dialog state and collaborator mutations stay in the workspace client shell; project access remains enforced on the server route.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/09-share-dialog.md`.
+- Added `/api/projects/[projectId]/collaborators` for collaborator list/invite/remove with project access checks and owner-only mutations.
+- Added Clerk user enrichment for collaborator emails via `clerkClient().users.getUserList`, with email-only fallback when no Clerk user is found.
+- Added `components/editor/share-dialog.tsx` with project link copy feedback, collaborator list, owner invite/remove controls, and collaborator read-only state.
+- Wired the workspace navbar Share button to open the share dialog.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/08-editor-workspace-shell.md`.
 - Added `lib/project-access.ts` for current Clerk identity lookup and owner/collaborator project access checks.
 - Added `components/editor/access-denied.tsx` for missing or unauthorized workspace access.
