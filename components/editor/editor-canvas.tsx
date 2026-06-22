@@ -42,6 +42,8 @@ import {
 } from "lucide-react";
 
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import type { CanvasTemplate } from "@/components/editor/starter-templates";
+import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal";
 import type { CanvasEdge, CanvasNode, CanvasNodeShape, CanvasShapeDragPayload } from "@/types/canvas";
 import {
   DEFAULT_CANVAS_NODE_TEXT_COLOR,
@@ -59,6 +61,8 @@ import type { EdgeProps } from "@xyflow/react";
 
 interface EditorCanvasProps {
   roomId: string;
+  isStarterTemplatesOpen: boolean;
+  onStarterTemplatesOpenChange: (isOpen: boolean) => void;
 }
 
 interface CanvasErrorBoundaryProps {
@@ -778,7 +782,42 @@ function CanvasControlBar({
   );
 }
 
-function SyncedReactFlowCanvas() {
+function cloneTemplateNode(node: CanvasNode): CanvasNode {
+  return {
+    ...node,
+    selected: false,
+    position: {
+      ...node.position,
+    },
+    data: {
+      ...node.data,
+    },
+    style: {
+      ...node.style,
+    },
+  };
+}
+
+function cloneTemplateEdge(edge: CanvasEdge): CanvasEdge {
+  return {
+    ...edge,
+    selected: false,
+    data: {
+      label: edge.data?.label ?? DEFAULT_EDGE_LABEL,
+    },
+    markerEnd:
+      typeof edge.markerEnd === "object" && edge.markerEnd
+        ? {
+            ...edge.markerEnd,
+          }
+        : edge.markerEnd,
+  };
+}
+
+function SyncedReactFlowCanvas({
+  isStarterTemplatesOpen,
+  onStarterTemplatesOpenChange,
+}: Pick<EditorCanvasProps, "isStarterTemplatesOpen" | "onStarterTemplatesOpenChange">) {
   const { nodes, edges, onNodesChange, onEdgesChange, onDelete } =
     useLiveblocksFlow<CanvasNode, CanvasEdge>({
       suspense: true,
@@ -1040,6 +1079,44 @@ function SyncedReactFlowCanvas() {
       redo();
     }
   }, [canRedo, redo]);
+  const handleTemplateImport = useCallback(
+    (template: CanvasTemplate) => {
+      const removeEdgeChanges = edgesRef.current.map((edge) => ({
+        type: "remove" as const,
+        id: edge.id,
+      }));
+      const removeNodeChanges = nodesRef.current.map((node) => ({
+        type: "remove" as const,
+        id: node.id,
+      }));
+      const addNodeChanges = template.nodes.map((node) => ({
+        type: "add" as const,
+        item: cloneTemplateNode(node),
+      }));
+      const addEdgeChanges = template.edges.map((edge) => ({
+        type: "add" as const,
+        item: cloneTemplateEdge(edge),
+      }));
+
+      if (removeEdgeChanges.length || addEdgeChanges.length) {
+        onEdgesChange([...removeEdgeChanges, ...addEdgeChanges]);
+      }
+
+      if (removeNodeChanges.length || addNodeChanges.length) {
+        onNodesChange([...removeNodeChanges, ...addNodeChanges]);
+      }
+
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          void reactFlowInstance?.fitView({
+            duration: CANVAS_VIEWPORT_ANIMATION_DURATION,
+            padding: 0.2,
+          });
+        });
+      });
+    },
+    [onEdgesChange, onNodesChange, reactFlowInstance],
+  );
 
   useKeyboardShortcuts({
     reactFlowInstance,
@@ -1088,18 +1165,30 @@ function SyncedReactFlowCanvas() {
         onPreviewEnd={endShapePreview}
       />
       <ShapeDragPreview preview={shapePreview} />
+      <StarterTemplatesModal
+        isOpen={isStarterTemplatesOpen}
+        onClose={() => onStarterTemplatesOpenChange(false)}
+        onImport={handleTemplateImport}
+      />
     </div>
   );
 }
 
-export function EditorCanvas({ roomId }: EditorCanvasProps) {
+export function EditorCanvas({
+  roomId,
+  isStarterTemplatesOpen,
+  onStarterTemplatesOpenChange,
+}: EditorCanvasProps) {
   return (
     <div className="h-full w-full overflow-hidden rounded-2xl border border-surface-border bg-background shadow-2xl">
       <CanvasErrorBoundary>
         <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
           <RoomProvider id={roomId} initialPresence={{ cursor: null, isThinking: false }}>
             <ClientSideSuspense fallback={<CanvasLoadingState />}>
-              <SyncedReactFlowCanvas />
+              <SyncedReactFlowCanvas
+                isStarterTemplatesOpen={isStarterTemplatesOpen}
+                onStarterTemplatesOpenChange={onStarterTemplatesOpenChange}
+              />
             </ClientSideSuspense>
           </RoomProvider>
         </LiveblocksProvider>

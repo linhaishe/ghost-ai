@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 17 (Canvas Ergonomics) — complete
+- Feature 18 (Starter Template) — complete
 
 ## Current Goal
 
-- Canvas zoom/history control bar and matching keyboard shortcuts are implemented.
+- Starter template library, import modal, navbar entry point, and canvas replacement import flow are implemented.
 
 ## Completed
 
@@ -29,6 +29,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 15 (22/06/26): Node Color Toolbar — `NODE_COLORS` palette added from `ui-context.md`, canvas node data now stores background and text colors, selected nodes show a floating swatch toolbar above the node, active swatches are highlighted, hover glow uses the paired text color, and swatch clicks update node colors through the existing Liveblocks React Flow state. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 16 (22/06/26): Edge Behavior — custom `canvasEdge` renderer added with smooth-step right-angle routing, light arrowed strokes, brighter hover/selected state, wider invisible interaction path, reconnect support, multiple same-node connections, and inline labels positioned with `EdgeLabelRenderer` plus `getSmoothStepPath` label coordinates. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 17 (22/06/26): Canvas Ergonomics — bottom-left pill control bar added with zoom out, fit view, zoom in, undo, and redo controls; zoom actions use the React Flow instance with short animation, undo/redo use Liveblocks history with disabled states, keyboard shortcuts are centralized in `hooks/useKeyboardShortcuts.ts`, editable fields are ignored, and the MiniMap was removed. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 18 (22/06/26): Starter Template — predefined Microservices, CI/CD Pipeline, and Event-Driven System templates added with shared canvas node/edge types and existing color palette; import modal added with screenshot-matched dark cards and lightweight SVG previews; workspace navbar includes a Templates entry point; importing a template replaces existing collaborative canvas nodes and edges, then fits the view. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -104,9 +105,20 @@ Update this file whenever the current phase, active feature, or implementation s
 - Canvas viewport controls live inside `EditorCanvas` as a bottom-left overlay and call React Flow instance methods directly for zoom out, fit view, and zoom in.
 - Canvas undo and redo are wired through Liveblocks `useUndo`, `useRedo`, `useCanUndo`, and `useCanRedo`, keeping history behavior tied to the existing room state.
 - Canvas keyboard shortcuts are centralized in `hooks/useKeyboardShortcuts.ts` and intentionally skip inputs, textareas, and editable fields.
+- Starter templates are defined in `components/editor/starter-templates.ts` with shared canvas node/edge types and the existing node color palette.
+- Starter template previews are rendered as lightweight SVG diagrams in `components/editor/starter-templates-modal.tsx`; they calculate bounds from node positions and do not create a React Flow instance.
+- Template imports replace existing synced React Flow nodes and edges through `onNodesChange` and `onEdgesChange`, then call React Flow `fitView`.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/18-starter-template.md`.
+- Read the starter template spec and reviewed `context/screenshot/starter-template.png` for modal layout, dark card styling, preview proportions, and import button treatment.
+- Added `components/editor/starter-templates.ts` with Microservices, CI/CD Pipeline, and Event-Driven System template data.
+- Added `components/editor/starter-templates-modal.tsx` with a wide dark import dialog, scrollable responsive card grid, fixed-size SVG previews, template descriptions, and full-width Import buttons.
+- Added the workspace navbar Templates button and wired it to open the starter template modal.
+- Wired template import inside `EditorCanvas` so existing canvas nodes/edges are removed before selected template nodes/edges are added to Liveblocks React Flow state.
+- Added fit-view behavior after template import.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/17-canvas-ergonomics.md`.
 - Read the canvas ergonomics spec and confirmed scope is bottom-left controls, Liveblocks history, keyboard shortcuts, and removing the MiniMap.
 - Added `hooks/useKeyboardShortcuts.ts` for zoom and history shortcuts, with editable-field guards.

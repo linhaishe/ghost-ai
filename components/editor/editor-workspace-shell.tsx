@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Share2, Sparkles } from "lucide-react";
+import { Bot, Download, Share2, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import { EditorCanvas } from "@/components/editor/editor-canvas";
@@ -29,6 +29,7 @@ export function EditorWorkspaceShell({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(true);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isStarterTemplatesOpen, setIsStarterTemplatesOpen] = useState(false);
   const projectActions = useProjectActions({ activeProjectId: roomId });
 
   return (
@@ -39,6 +40,15 @@ export function EditorWorkspaceShell({
         centerContent={projectName}
         rightContent={
           <>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => setIsStarterTemplatesOpen(true)}
+            >
+              <Download className="h-4 w-4" />
+              Templates
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -74,7 +84,11 @@ export function EditorWorkspaceShell({
       />
 
       <main className="relative min-h-0 flex-1 overflow-hidden bg-base p-4">
-        <EditorCanvas roomId={roomId} />
+        <EditorCanvas
+          roomId={roomId}
+          isStarterTemplatesOpen={isStarterTemplatesOpen}
+          onStarterTemplatesOpenChange={setIsStarterTemplatesOpen}
+        />
 
         <aside
           className={cn(
