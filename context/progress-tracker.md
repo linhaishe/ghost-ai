@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 15 (Node Color Toolbar) — complete
+- Feature 16 (Edge Behavior) — complete
 
 ## Current Goal
 
-- Selected nodes can change predefined background/text color pairs directly on the canvas.
+- Canvas edges use custom right-angle rendering with arrows, reconnecting, and inline labels.
 
 ## Completed
 
@@ -27,6 +27,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 13 (22/06/26): Node Shape Rendering — custom node renderer now displays rectangle, pill, and circle with CSS shapes, diamond, hexagon, and cylinder with scalable SVG shapes, selected nodes use brighter strokes, and shape dragging shows a cursor-following ghost preview using the same shape and default size as drop creation. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 14 (22/06/26): Node Editing — selected canvas nodes show subtle React Flow resize handles with minimum size constraints, node labels can be edited inline by double-clicking the centered label area, empty labels show centered placeholder text, textarea interactions avoid canvas dragging/panning, and label edits sync through the existing Liveblocks React Flow node state. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 15 (22/06/26): Node Color Toolbar — `NODE_COLORS` palette added from `ui-context.md`, canvas node data now stores background and text colors, selected nodes show a floating swatch toolbar above the node, active swatches are highlighted, hover glow uses the paired text color, and swatch clicks update node colors through the existing Liveblocks React Flow state. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 16 (22/06/26): Edge Behavior — custom `canvasEdge` renderer added with smooth-step right-angle routing, light arrowed strokes, brighter hover/selected state, wider invisible interaction path, reconnect support, multiple same-node connections, and inline labels positioned with `EdgeLabelRenderer` plus `getSmoothStepPath` label coordinates. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -96,9 +97,19 @@ Update this file whenever the current phase, active feature, or implementation s
 - The selected-node color toolbar is rendered inside the custom node and updates color data via `onNodesChange` replace operations, with no server calls.
 - Custom canvas nodes render four side connection handles and four side resize controls so controls sit on shape edges/vertices instead of a rectangular bounding frame.
 - Edge creation bypasses React Flow's default duplicate-edge guard by adding uniquely identified edges through `onEdgesChange`; existing edges are reconnectable through `onReconnect`.
+- Canvas edges use the custom `canvasEdge` type by default, store label text in `data.label`, and render through a local edge component rather than React Flow's default edge.
+- Edge labels are updated with `onEdgesChange` replace operations so label edits stay in the synced Liveblocks flow state.
+- Edge labels use `EdgeLabelRenderer` and the label coordinates returned by `getSmoothStepPath`; midpoint placement is not manually calculated.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/16-edge-behavior.md`.
+- Read the edge behavior spec and confirmed existing node handles/reconnect groundwork should be folded into the formal custom edge implementation.
+- Added `CanvasEdgeData` with `label` in `types/canvas.ts`.
+- Registered a custom `CanvasEdgeRenderer` for `canvasEdge`, using `getSmoothStepPath`, `BaseEdge`, `EdgeLabelRenderer`, arrow markers, hover/selected brightening, and wider invisible interaction width.
+- Added inline edge label editing with a growing input; blur, Enter, and Escape save through `onEdgesChange`.
+- Ensured new and existing edges render as `canvasEdge` with default labels, arrowheads, and reconnectable behavior.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Updated edge creation to allow multiple connections between the same shapes/handles and added edge reconnection support. Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Fixed custom node controls so connection handles appear on all four sides and selected-node resize controls use four edge controls instead of the default rectangular `NodeResizer` frame. Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/15-nodes-color-toolbar.md`.

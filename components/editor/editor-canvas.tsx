@@ -5,13 +5,17 @@ import { ClientSideSuspense, LiveblocksProvider, RoomProvider } from "@liveblock
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
   ConnectionMode,
+  EdgeLabelRenderer,
   Handle,
+  MarkerType,
   MiniMap,
   NodeResizeControl,
   Position,
   ResizeControlVariant,
   ReactFlow,
+  getSmoothStepPath,
 } from "@xyflow/react";
 import type { Connection } from "@xyflow/react";
 import type { CSSProperties, DragEvent, KeyboardEvent, ReactNode } from "react";
@@ -28,6 +32,7 @@ import {
 import type { CanvasEdge, CanvasNode, CanvasNodeShape, CanvasShapeDragPayload } from "@/types/canvas";
 import {
   DEFAULT_CANVAS_NODE_TEXT_COLOR,
+  CANVAS_EDGE_TYPE,
   CANVAS_NODE_TYPE,
   CANVAS_SHAPE_DEFAULT_SIZES,
   CANVAS_SHAPE_DRAG_TYPE,
@@ -37,6 +42,7 @@ import {
   type CanvasNodeColorPair,
 } from "@/types/canvas";
 import type { NodeProps, ReactFlowInstance } from "@xyflow/react";
+import type { EdgeProps } from "@xyflow/react";
 
 interface EditorCanvasProps {
   roomId: string;
@@ -76,6 +82,8 @@ const NODE_HANDLE_POSITIONS = [
 ] as const;
 
 const NODE_RESIZE_CONTROL_POSITIONS = ["top", "right", "bottom", "left"] as const;
+
+const DEFAULT_EDGE_LABEL = "";
 
 function CanvasLoadingState() {
   return (
@@ -485,6 +493,131 @@ function NodeColorToolbar({
   );
 }
 
+function CanvasEdgeRenderer({
+  id,
+  data,
+  selected,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  onLabelChange,
+}: EdgeProps<CanvasEdge> & {
+  onLabelChange: (edgeId: string, label: string) => void;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftLabel, setDraftLabel] = useState(data?.label ?? DEFAULT_EDGE_LABEL);
+  const isActive = selected || isHovered || isEditing;
+  const savedLabel = data?.label ?? DEFAULT_EDGE_LABEL;
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    borderRadius: 12,
+    offset: 28,
+  });
+
+  const beginEditing = useCallback(() => {
+    setDraftLabel(savedLabel);
+    setIsEditing(true);
+  }, [savedLabel]);
+  const saveLabel = useCallback(() => {
+    onLabelChange(id, draftLabel.trim());
+    setIsEditing(false);
+  }, [draftLabel, id, onLabelChange]);
+  const handleLabelKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      event.stopPropagation();
+
+      if (event.key === "Enter" || event.key === "Escape") {
+        event.preventDefault();
+        saveLabel();
+      }
+    },
+    [saveLabel],
+  );
+
+  return (
+    <g
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onDoubleClick={(event) => {
+        event.stopPropagation();
+        beginEditing();
+      }}
+    >
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        interactionWidth={24}
+        style={{
+          stroke: isActive ? "var(--text-primary)" : "rgba(248, 250, 252, 0.42)",
+          strokeLinecap: "round",
+          strokeLinejoin: "round",
+          strokeWidth: isActive ? 2 : 1.5,
+          transition: "stroke 120ms ease, stroke-width 120ms ease",
+        }}
+      />
+      <EdgeLabelRenderer>
+        <div
+          className="nodrag nopan pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2"
+          style={{
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => {
+            event.stopPropagation();
+            beginEditing();
+          }}
+        >
+          {isEditing ? (
+            <input
+              autoFocus
+              aria-label="Edit edge label"
+              value={draftLabel}
+              onBlur={saveLabel}
+              onChange={(event) => setDraftLabel(event.target.value)}
+              onKeyDown={handleLabelKeyDown}
+              className="nodrag nopan h-7 rounded-full border border-surface-border bg-surface px-2 text-center text-xs font-medium text-copy-primary outline-none ring-1 ring-brand/50"
+              style={{
+                width: `${Math.max(6, draftLabel.length + 2)}ch`,
+              }}
+            />
+          ) : savedLabel ? (
+            <button
+              type="button"
+              className="rounded-full border border-surface-border bg-surface/95 px-2 py-1 text-xs font-medium text-copy-primary shadow-lg backdrop-blur"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {savedLabel}
+            </button>
+          ) : isActive ? (
+            <button
+              type="button"
+              className="rounded-full border border-dashed border-surface-border bg-surface/70 px-2 py-1 text-xs font-medium text-copy-faint backdrop-blur"
+              onClick={(event) => {
+                event.stopPropagation();
+                beginEditing();
+              }}
+            >
+              Label
+            </button>
+          ) : null}
+        </div>
+      </EdgeLabelRenderer>
+    </g>
+  );
+}
+
 function ShapeDragPreview({ preview }: { preview: ShapePreviewState | null }) {
   if (!preview) {
     return null;
@@ -573,12 +706,33 @@ function SyncedReactFlowCanvas() {
   const nodeCounterRef = useRef(0);
   const edgeCounterRef = useRef(0);
   const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(null);
   const [shapePreview, setShapePreview] = useState<ShapePreviewState | null>(null);
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
+  const renderedEdges = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        type: edge.type ?? CANVAS_EDGE_TYPE,
+        data: {
+          label: edge.data?.label ?? DEFAULT_EDGE_LABEL,
+        },
+        markerEnd: edge.markerEnd ?? {
+          type: MarkerType.ArrowClosed,
+          color: "#f8fafc",
+        },
+        interactionWidth: edge.interactionWidth ?? 24,
+        reconnectable: true,
+      })),
+    [edges],
+  );
   const replaceNodeData = useCallback(
     (nodeId: string, dataPatch: Partial<CanvasNode["data"]>) => {
       const currentNode = nodesRef.current.find((node) => node.id === nodeId);
@@ -629,6 +783,38 @@ function SyncedReactFlowCanvas() {
       ),
     }),
     [handleNodeColorChange, handleNodeLabelChange],
+  );
+  const handleEdgeLabelChange = useCallback(
+    (edgeId: string, label: string) => {
+      const currentEdge = edgesRef.current.find((edge) => edge.id === edgeId);
+
+      if (!currentEdge) {
+        return;
+      }
+
+      onEdgesChange([
+        {
+          type: "replace",
+          id: edgeId,
+          item: {
+            ...currentEdge,
+            type: currentEdge.type ?? CANVAS_EDGE_TYPE,
+            data: {
+              label,
+            },
+          },
+        },
+      ]);
+    },
+    [onEdgesChange],
+  );
+  const edgeTypes = useMemo(
+    () => ({
+      [CANVAS_EDGE_TYPE]: (props: EdgeProps<CanvasEdge>) => (
+        <CanvasEdgeRenderer {...props} onLabelChange={handleEdgeLabelChange} />
+      ),
+    }),
+    [handleEdgeLabelChange],
   );
   const handleDragOver = useCallback((event: DragEvent) => {
     event.preventDefault();
@@ -691,12 +877,19 @@ function SyncedReactFlowCanvas() {
 
       const newEdge: CanvasEdge = {
         id: `edge-${Date.now()}-${edgeCounterRef.current}`,
+        type: CANVAS_EDGE_TYPE,
         source: connection.source,
         target: connection.target,
         sourceHandle: connection.sourceHandle,
         targetHandle: connection.targetHandle,
-        data: {},
-        interactionWidth: 18,
+        data: {
+          label: DEFAULT_EDGE_LABEL,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: "#f8fafc",
+        },
+        interactionWidth: 24,
         reconnectable: true,
       };
 
@@ -712,10 +905,14 @@ function SyncedReactFlowCanvas() {
           id: oldEdge.id,
           item: {
             ...oldEdge,
+            type: oldEdge.type ?? CANVAS_EDGE_TYPE,
             source: newConnection.source,
             target: newConnection.target,
             sourceHandle: newConnection.sourceHandle,
             targetHandle: newConnection.targetHandle,
+            data: {
+              label: oldEdge.data?.label ?? DEFAULT_EDGE_LABEL,
+            },
           },
         },
       ]);
@@ -737,8 +934,9 @@ function SyncedReactFlowCanvas() {
       <ReactFlow<CanvasNode, CanvasEdge>
         className="h-full w-full bg-background"
         nodes={nodes}
-        edges={edges}
+        edges={renderedEdges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onInit={setReactFlowInstance}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
