@@ -1,3 +1,5 @@
+import { get } from "@vercel/blob";
+
 import { getCurrentProjectIdentity, getProjectAccessRole } from "@/lib/project-access";
 import { prisma } from "@/lib/prisma";
 
@@ -62,18 +64,18 @@ export async function GET(
     return jsonError("Spec not found", 404);
   }
 
-  const response = await fetch(spec.filePath, {
-    cache: "no-store",
+  const blob = await get(spec.filePath, {
+    access: "private",
+    useCache: false,
   });
 
-  if (!response.ok) {
+  if (!blob?.stream) {
     return jsonError("Spec file could not be loaded", 502);
   }
 
-  const content = await response.text();
   const filename = `${sanitizeFilename(spec.project.name)}-${sanitizeFilename(spec.id)}.md`;
 
-  return new Response(content, {
+  return new Response(blob.stream, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,

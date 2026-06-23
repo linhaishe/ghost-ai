@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useOthers, useSelf, useStorage } from "@liveblocks/react/suspense";
+import { useLiveblocksFlow } from "@liveblocks/react-flow";
 import { useRealtimeRun } from "@trigger.dev/react-hooks";
 import { Bot, Download, FileText, Loader2, Send, Sparkles, X } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
@@ -17,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import type { CanvasEdge, CanvasNode } from "@/types/canvas";
 import {
   AI_CHAT_FEED_ID,
   AI_STATUS_FEED_ID,
@@ -539,13 +541,30 @@ function MarkdownPreview({ content }: { content: string }) {
 }
 
 function SpecsTab({ roomId }: { roomId: string }) {
+  const { nodes, edges } = useLiveblocksFlow<CanvasNode, CanvasEdge>({
+    suspense: true,
+    nodes: {
+      initial: [],
+    },
+    edges: {
+      initial: [],
+    },
+  });
   const [specs, setSpecs] = useState<ProjectSpecListItem[]>([]);
   const [selectedSpec, setSelectedSpec] = useState<ProjectSpecListItem | null>(null);
   const [previewContent, setPreviewContent] = useState("");
+  const [activeSpecRun, setActiveSpecRun] = useState<{ runId: string; publicToken: string } | null>(null);
+  const [specStatusText, setSpecStatusText] = useState<string | null>(null);
   const [isLoadingSpecs, setIsLoadingSpecs] = useState(true);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [isStartingSpec, setIsStartingSpec] = useState(false);
   const [specsError, setSpecsError] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const completedSpecRunIdsRef = useRef(new Set<string>());
+  const erroredSpecRunIdsRef = useRef(new Set<string>());
+  const chatMessages = useStorage((storage) =>
+    getValidAiChatMessages(storage[AI_CHAT_FEED_ID]),
+  );
 
   const getDownloadUrl = useCallback(
     (specId: string) => `/api/projects/${roomId}/specs/${specId}/download`,
@@ -574,6 +593,30 @@ function SpecsTab({ roomId }: { roomId: string }) {
       setIsLoadingSpecs(false);
     }
   }, [roomId]);
+
+  const { run: specRun, error: specRealtimeError } = useRealtimeRun(activeSpecRun?.runId, {
+    accessToken: activeSpecRun?.publicToken,
+    enabled: Boolean(activeSpecRun),
+    onComplete: (completedRun, error) => {
+      const completedRunId = completedRun.id;
+
+      if (completedSpecRunIdsRef.current.has(completedRunId)) {
+        return;
+      }
+
+      completedSpecRunIdsRef.current.add(completedRunId);
+
+      if (error || completedRun.status !== "COMPLETED") {
+        setSpecStatusText("Spec generation failed. Please try again.");
+      } else {
+        setSpecStatusText("Spec generated. Refreshing list...");
+        void loadSpecs();
+      }
+
+      setActiveSpecRun(null);
+    },
+  });
+  const isSpecRunActive = Boolean(activeSpecRun) && !isFinishedRunStatus(specRun?.status);
 
   useEffect(() => {
     let isMounted = true;
@@ -647,13 +690,126 @@ function SpecsTab({ roomId }: { roomId: string }) {
     [getDownloadUrl],
   );
 
+  useEffect(() => {
+    if (!activeSpecRun || !specRealtimeError || erroredSpecRunIdsRef.current.has(activeSpecRun.runId)) {
+      return;
+    }
+
+    erroredSpecRunIdsRef.current.add(activeSpecRun.runId);
+    setSpecStatusText("Realtime status disconnected. Check the spec list in a moment.");
+    setActiveSpecRun(null);
+  }, [activeSpecRun, specRealtimeError]);
+
+  const generateSpec = useCallback(async () => {
+    if (isStartingSpec || isSpecRunActive) {
+      return;
+    }
+
+    setIsStartingSpec(true);
+    setSpecsError(null);
+    setSpecStatusText("Starting spec generation...");
+
+    try {
+      const response = await fetch("/api/ai/spec", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          roomId,
+          chatHistory: chatMessages.slice(-100),
+          nodes: nodes.map((node) => ({
+            id: node.id,
+            type: node.type,
+            position: node.position,
+            data: node.data,
+            style: node.style,
+            width: node.width,
+            height: node.height,
+          })),
+          edges: edges.map((edge) => ({
+            id: edge.id,
+            type: edge.type,
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle,
+            targetHandle: edge.targetHandle,
+            data: edge.data,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Spec generation could not be started.");
+      }
+
+      const payload = (await response.json()) as { runId?: unknown };
+
+      if (typeof payload.runId !== "string") {
+        throw new Error("Spec generation response was invalid.");
+      }
+
+      const tokenResponse = await fetch("/api/ai/spec/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          runId: payload.runId,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        throw new Error("Spec run token could not be created.");
+      }
+
+      const tokenPayload = (await tokenResponse.json()) as { token?: unknown };
+
+      if (typeof tokenPayload.token !== "string") {
+        throw new Error("Spec run token response was invalid.");
+      }
+
+      setActiveSpecRun({
+        runId: payload.runId,
+        publicToken: tokenPayload.token,
+      });
+      setSpecStatusText("Spec generation is running...");
+    } catch {
+      setSpecStatusText("Spec generation could not be started. Please try again.");
+    } finally {
+      setIsStartingSpec(false);
+    }
+  }, [chatMessages, edges, isSpecRunActive, isStartingSpec, nodes, roomId]);
+
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col gap-4 p-5">
-        <Button type="button" className="bg-ai text-white hover:bg-ai/90">
-          <Sparkles className="h-4 w-4" />
-          Generate Spec
+        <Button
+          type="button"
+          className="bg-ai text-white hover:bg-ai/90"
+          onClick={() => void generateSpec()}
+          disabled={isStartingSpec || isSpecRunActive}
+        >
+          {isStartingSpec || isSpecRunActive ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
+          {isStartingSpec || isSpecRunActive ? "Generating..." : "Generate Spec"}
         </Button>
+
+        {specStatusText ? (
+          <div className="rounded-2xl border border-surface-border bg-base/70 px-4 py-3 text-sm text-copy-primary">
+            <div className="flex items-center gap-3">
+              {isStartingSpec || isSpecRunActive ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-ai-text" />
+              ) : (
+                <Sparkles className="h-4 w-4 shrink-0 text-ai-text" />
+              )}
+              <span className="min-w-0 flex-1">{specStatusText}</span>
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-surface-border bg-elevated shadow-xl">
           <div className="flex items-center justify-between border-b border-surface-border px-4 py-3">

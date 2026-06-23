@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 
 import { getCurrentProjectIdentity, getProjectAccessRole } from "@/lib/project-access";
 import { prisma } from "@/lib/prisma";
@@ -58,15 +58,16 @@ export async function GET(
     return Response.json({ canvas: null });
   }
 
-  const response = await fetch(project.canvasJsonPath, {
-    cache: "no-store",
+  const blob = await get(project.canvasJsonPath, {
+    access: "private",
+    useCache: false,
   });
 
-  if (!response.ok) {
+  if (!blob?.stream) {
     return jsonError("Saved canvas could not be loaded", 502);
   }
 
-  const canvas = (await response.json()) as unknown;
+  const canvas = (await new Response(blob.stream).json()) as unknown;
 
   if (!isCanvasState(canvas)) {
     return jsonError("Saved canvas is invalid", 502);
