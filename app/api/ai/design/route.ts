@@ -1,3 +1,5 @@
+import { auth as triggerAuth } from "@trigger.dev/sdk/v3";
+
 import { designAgentTask } from "@/trigger/design-agent";
 import { getCurrentProjectIdentity, getProjectAccessRole } from "@/lib/project-access";
 import { prisma } from "@/lib/prisma";
@@ -19,7 +21,7 @@ async function readDesignRequest(request: Request) {
 
   return {
     prompt,
-    projectId,
+    projectId: projectId || roomId,
     roomId,
   };
 }
@@ -65,5 +67,14 @@ export async function POST(request: Request) {
     },
   });
 
-  return Response.json({ runId: run.id }, { status: 201 });
+  const publicToken = await triggerAuth.createPublicToken({
+    scopes: {
+      read: {
+        runs: run.id,
+      },
+    },
+    expirationTime: "1h",
+  });
+
+  return Response.json({ runId: run.id, publicToken }, { status: 201 });
 }

@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 25 (Sidebar Chat Feed) — complete
+- Feature 26 (Design Agent Frontend) — complete
 
 ## Current Goal
 
-- Feature 25 is complete: the AI sidebar now uses a separate room-scoped Liveblocks `ai-chat` feed with validated sender, role, content, and timestamp payloads.
+- Feature 26 is complete: the AI sidebar submits prompts to the design agent, tracks Trigger.dev runs in realtime, and reflects results through Liveblocks chat/status feeds while canvas updates flow through Liveblocks.
 
 ## Completed
 
@@ -37,6 +37,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 23 (23/06/26): Design Agent Logic — `trigger/design-agent.ts` now uses Gemini through `@ai-sdk/google` and AI SDK structured output to plan canvas actions, applies add/move/resize/update/delete node and add/delete edge actions through `@liveblocks/react-flow/node` `mutateFlow`, validates generated shapes/colors/sizes against existing canvas constants, publishes Liveblocks-backed AI status messages, sets and clears AI presence with cursor/thinking state, and handles failures with status updates. AI sidebar prompt submission now starts the design API, and the canvas renders the shared AI status feed. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 24 (23/06/26): AI Presence State — `types/tasks.ts` added with `ai-status-feed` payload helpers and validation, Liveblocks Storage now includes the named AI status feed, the AI sidebar subscribes to the latest validated status and disables only the chat input/send button while shared generation is active, the Liveblocks room provider wraps both canvas and sidebar, canvas status display shows only the latest message, and remote cursor badges show a spinner when `presence.thinking` is true. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 25 (23/06/26): Sidebar Chat Feed — `ai-chat` added as a separate Liveblocks Storage feed, `types/tasks.ts` now defines Zod-validated chat message payloads with sender, role, content, and timestamp, AI sidebar renders validated room chat messages in order with sender/time/content, the existing sidebar input sends user messages to `ai-chat` without triggering backend AI tasks, and send failures show a small inline error. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 26 (23/06/26): Design Agent Frontend — AI sidebar prompt submission now writes the user message to `ai-chat`, calls `POST /api/ai/design` with the active room ID, stores returned `runId`/`publicToken`, tracks the run with `useRealtimeRun`, disables input and shows a compact status strip only while the run is active, writes final success/error AI messages back to `ai-chat`, and relies on Liveblocks React Flow for realtime canvas updates. `/api/ai/design` now returns a run-scoped public token with the run ID. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -44,7 +45,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Feature 26 spec when ready.
+- Feature 27 spec when ready.
 
 ## Open Questions
 
@@ -136,9 +137,20 @@ Update this file whenever the current phase, active feature, or implementation s
 - Shared AI task/feed payload validation lives in `types/tasks.ts`; UI surfaces parse incoming feed messages before display and show only the latest valid status.
 - Sidebar collaborative chat uses a separate room-scoped Liveblocks Storage feed named `ai-chat`; it is intentionally independent from `ai-status-feed` and does not trigger AI generation.
 - Chat feed messages are validated with Zod in `types/tasks.ts` before rendering; the message shape contains sender metadata, role, content, and timestamp.
+- AI sidebar submit first records the user prompt in `ai-chat`, then starts the design agent run through `/api/ai/design`; canvas changes are never manually mirrored by the sidebar and arrive through the existing Liveblocks React Flow room.
+- Trigger.dev realtime run subscriptions use the run-scoped `publicToken` returned by `/api/ai/design`; final frontend status is written as an assistant message into `ai-chat`.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/26-design-agent-frontend.md`.
+- Read the design agent frontend spec and confirmed scope is frontend wiring only: no backend task changes, no manual canvas state sync, and no graph data fetching.
+- Checked the existing AI sidebar, `ai-chat`/`ai-status-feed` helpers, `/api/ai/design`, `/api/ai/design/token`, and Trigger.dev `useRealtimeRun` hook types.
+- Read the local Next route handler docs before updating `app/api/ai/design/route.ts`.
+- Updated `/api/ai/design` to accept `{ prompt, roomId }` by treating `roomId` as the project ID when `projectId` is absent, and to return `{ runId, publicToken }`.
+- Wired the AI sidebar submit flow to append the user prompt to `ai-chat`, call `/api/ai/design`, and store the returned run ID/token locally.
+- Added `useRealtimeRun` tracking with active-run input disabling, compact status strip rendering from `ai-status-feed`, and final assistant success/error messages written to `ai-chat`.
+- Updated chat bubble/button styling to use the requested green accent for user/send states while keeping AI messages dark.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/25-sidebar-chat-feed.md`.
 - Read the sidebar chat feed spec and confirmed scope is collaborative room chat only: no AI replies, no backend task trigger, and no mixing with `ai-status-feed`.
 - Re-read the Liveblocks best-practices skill plus storage selector and typing references; chat should use the existing room-scoped Liveblocks Storage pattern.

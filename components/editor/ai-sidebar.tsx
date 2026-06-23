@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useOthers, useSelf, useStorage } from "@liveblocks/react/suspense";
+import { useRealtimeRun } from "@trigger.dev/react-hooks";
 import { Bot, Download, FileText, Loader2, Send, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -19,6 +20,7 @@ import {
 
 interface AiSidebarProps {
   isOpen: boolean;
+  roomId: string;
   onClose: () => void;
 }
 
@@ -29,6 +31,21 @@ const STARTER_PROMPTS = [
 ] as const;
 
 const MAX_CHAT_MESSAGES = 100;
+const AI_CHAT_SENDER = {
+  id: "ghost-ai-agent",
+  name: "Ghost AI",
+  avatarUrl: null,
+  color: "#62C073",
+} satisfies AiChatFeedMessage["sender"];
+const FINISHED_RUN_STATUSES = [
+  "COMPLETED",
+  "CANCELED",
+  "FAILED",
+  "CRASHED",
+  "SYSTEM_FAILURE",
+  "EXPIRED",
+  "TIMED_OUT",
+] as const;
 
 function formatMessageTime(timestamp: string) {
   return new Date(timestamp).toLocaleTimeString([], {
@@ -52,8 +69,8 @@ function ChatMessageBubble({
         className={cn(
           "max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg",
           isCurrentUser
-            ? "border-2 border-brand/50 bg-brand/15 text-copy-primary"
-            : "border border-surface-border bg-elevated text-accent-text",
+            ? "border border-[#62C073]/45 bg-[#62C073] text-slate-950"
+            : "border border-surface-border bg-elevated text-copy-primary",
         )}
       >
         <div className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-copy-faint">
@@ -87,12 +104,12 @@ function AiSharedStatus({
   statusText: string | null;
 }) {
   return (
-    <div className="rounded-2xl border border-surface-border bg-subtle/60 px-4 py-3">
+    <div className="mb-3 rounded-2xl border border-surface-border bg-base px-4 py-3">
       <div className="flex items-center gap-3">
         <span
           className={cn(
             "flex size-2.5 shrink-0 rounded-full",
-            isActive ? "bg-ai-text shadow-[0_0_18px_rgba(106,77,255,0.65)]" : "bg-copy-faint",
+            isActive ? "animate-pulse bg-[#62C073] shadow-[0_0_18px_rgba(98,192,115,0.45)]" : "bg-copy-faint",
           )}
         />
         <div className="min-w-0">
@@ -104,19 +121,25 @@ function AiSharedStatus({
           </p>
         </div>
         {isActive ? (
-          <Loader2 aria-hidden="true" className="ml-auto h-4 w-4 shrink-0 animate-spin text-ai-text" />
+          <Loader2 aria-hidden="true" className="ml-auto h-4 w-4 shrink-0 animate-spin text-[#62C073]" />
         ) : null}
       </div>
     </div>
   );
 }
 
-function AiArchitectTab() {
+function isFinishedRunStatus(status: string | undefined) {
+  return FINISHED_RUN_STATUSES.includes(status as (typeof FINISHED_RUN_STATUSES)[number]);
+}
+
+function AiArchitectTab({ roomId }: { roomId: string }) {
   const [prompt, setPrompt] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
+  const [activeRun, setActiveRun] = useState<{ runId: string; publicToken: string } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
+  const completedRunIdsRef = useRef(new Set<string>());
+  const erroredRunIdsRef = useRef(new Set<string>());
   const self = useSelf();
   const chatMessages = useStorage((storage) =>
     getValidAiChatMessages(storage[AI_CHAT_FEED_ID]),
@@ -124,25 +147,8 @@ function AiArchitectTab() {
   const hasMessages = chatMessages.length > 0;
   const isGenerationActive = useIsAiGenerationActive();
   const latestStatusText = useLatestAiStatusText();
-  const isChatInputDisabled = isSending || isGenerationActive;
-  const sendChatMessage = useMutation(
-    ({ storage, self: roomSelf }, content: string) => {
-      const trimmedContent = content.trim();
-
-      if (!trimmedContent) {
-        return;
-      }
-
-      const message = createAiChatFeedMessage({
-        role: "user",
-        content: trimmedContent,
-        sender: {
-          id: roomSelf.id,
-          name: roomSelf.info.name,
-          avatarUrl: roomSelf.info.avatarUrl,
-          color: roomSelf.info.cursorColor,
-        },
-      });
+  const appendChatMessage = useMutation(
+    ({ storage }, message: AiChatFeedMessage) => {
       const currentMessages = storage.get(AI_CHAT_FEED_ID) ?? [];
       const nextMessages = [...currentMessages, message].slice(-MAX_CHAT_MESSAGES);
 
@@ -150,6 +156,32 @@ function AiArchitectTab() {
     },
     [],
   );
+  const { run, error: realtimeError } = useRealtimeRun(activeRun?.runId, {
+    accessToken: activeRun?.publicToken,
+    enabled: Boolean(activeRun),
+    onComplete: (completedRun, error) => {
+      const completedRunId = completedRun.id;
+
+      if (completedRunIdsRef.current.has(completedRunId)) {
+        return;
+      }
+
+      completedRunIdsRef.current.add(completedRunId);
+      appendChatMessage(
+        createAiChatFeedMessage({
+          role: "assistant",
+          sender: AI_CHAT_SENDER,
+          content:
+            error || completedRun.status !== "COMPLETED"
+              ? "I couldn’t finish the design run. Please try again."
+              : "Design run complete. I updated the shared canvas.",
+        }),
+      );
+      setActiveRun(null);
+    },
+  });
+  const isRunActive = Boolean(activeRun) && !isFinishedRunStatus(run?.status);
+  const isChatInputDisabled = isSending || isRunActive || isGenerationActive;
 
   const resizeTextarea = useCallback(() => {
     const textarea = textareaRef.current;
@@ -163,11 +195,33 @@ function AiArchitectTab() {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ block: "end" });
+    const scrollElement = messagesScrollRef.current;
+
+    if (!scrollElement) {
+      return;
+    }
+
+    scrollElement.scrollTop = scrollElement.scrollHeight;
   }, [chatMessages.length]);
 
+  useEffect(() => {
+    if (!activeRun || !realtimeError || erroredRunIdsRef.current.has(activeRun.runId)) {
+      return;
+    }
+
+    erroredRunIdsRef.current.add(activeRun.runId);
+    appendChatMessage(
+      createAiChatFeedMessage({
+        role: "assistant",
+        sender: AI_CHAT_SENDER,
+        content: "I lost the realtime connection for this design run. Please try again.",
+      }),
+    );
+    setActiveRun(null);
+  }, [activeRun, appendChatMessage, realtimeError]);
+
   const submitPrompt = useCallback(
-    (value = prompt) => {
+    async (value = prompt) => {
       const trimmedPrompt = value.trim();
 
       if (!trimmedPrompt || isChatInputDisabled) {
@@ -175,36 +229,77 @@ function AiArchitectTab() {
       }
 
       setIsSending(true);
-      setSendError(null);
 
       try {
-        sendChatMessage(trimmedPrompt);
+        appendChatMessage(
+          createAiChatFeedMessage({
+            role: "user",
+            content: trimmedPrompt,
+            sender: {
+              id: self.id,
+              name: self.info.name,
+              avatarUrl: self.info.avatarUrl,
+              color: self.info.cursorColor,
+            },
+          }),
+        );
         setPrompt("");
         window.requestAnimationFrame(() => {
           if (textareaRef.current) {
             textareaRef.current.style.height = "72px";
           }
         });
+        const response = await fetch("/api/ai/design", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: trimmedPrompt,
+            roomId,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Design task could not be started.");
+        }
+
+        const payload = (await response.json()) as {
+          runId?: unknown;
+          publicToken?: unknown;
+        };
+
+        if (typeof payload.runId !== "string" || typeof payload.publicToken !== "string") {
+          throw new Error("Design task response was invalid.");
+        }
+
+        setActiveRun({
+          runId: payload.runId,
+          publicToken: payload.publicToken,
+        });
       } catch {
-        setSendError("Message could not be sent. Please try again.");
+        appendChatMessage(
+          createAiChatFeedMessage({
+            role: "assistant",
+            sender: AI_CHAT_SENDER,
+            content: "I couldn’t start the design run. Please try again.",
+          }),
+        );
       } finally {
         setIsSending(false);
       }
     },
-    [isChatInputDisabled, prompt, sendChatMessage],
+    [appendChatMessage, isChatInputDisabled, prompt, roomId, self],
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-        <AiSharedStatus isActive={isGenerationActive} statusText={latestStatusText} />
-
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
         {hasMessages ? (
           <div className="mt-4 space-y-4">
             {chatMessages.map((message) => (
               <ChatMessageBubble key={message.id} message={message} currentUserId={self.id} />
             ))}
-            <div ref={messagesEndRef} />
           </div>
         ) : (
           <div className="mt-4 flex h-full min-h-80 flex-col items-center justify-center rounded-2xl border border-dashed border-surface-border bg-subtle/40 px-5 text-center">
@@ -236,7 +331,13 @@ function AiArchitectTab() {
         )}
       </div>
 
-      <div className="border-t border-surface-border bg-base/70 p-5">
+      <div className="shrink-0 border-t border-surface-border bg-base/70 p-5">
+        {isRunActive ? (
+          <AiSharedStatus
+            isActive
+            statusText={latestStatusText ?? "Design run is active..."}
+          />
+        ) : null}
         <div className="rounded-2xl border border-surface-border bg-elevated/70 p-3">
           <Textarea
             ref={textareaRef}
@@ -258,7 +359,7 @@ function AiArchitectTab() {
           <div className="mt-3 flex justify-end">
             <Button
               type="button"
-              className="bg-ai text-white hover:bg-ai/90"
+              className="bg-[#62C073] text-slate-950 hover:bg-[#62C073]/90 disabled:opacity-50"
               onClick={() => submitPrompt()}
               disabled={!prompt.trim() || isChatInputDisabled}
             >
@@ -267,10 +368,9 @@ function AiArchitectTab() {
               ) : (
                 <Send className="h-4 w-4" />
               )}
-              {isSending ? "Sending" : isGenerationActive ? "Working" : "Send"}
+              {isSending ? "Sending" : isRunActive || isGenerationActive ? "Working" : "Send"}
             </Button>
           </div>
-          {sendError ? <p className="mt-3 text-xs text-error">{sendError}</p> : null}
         </div>
       </div>
     </div>
@@ -315,7 +415,7 @@ function SpecsTab() {
   );
 }
 
-export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
+export function AiSidebar({ isOpen, roomId, onClose }: AiSidebarProps) {
   return (
     <aside
       className={cn(
@@ -345,7 +445,7 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
         </Button>
       </div>
 
-      <Tabs defaultValue="architect" className="min-h-0 flex-1 gap-0">
+      <Tabs defaultValue="architect" className="min-h-0 flex-1 gap-0 overflow-hidden">
         <div className="border-b border-surface-border px-5 py-4">
           <TabsList className="grid h-10 w-full grid-cols-2 bg-subtle p-1">
             <TabsTrigger
@@ -363,10 +463,16 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
           </TabsList>
         </div>
 
-        <TabsContent value="architect" className="min-h-0 data-inactive:hidden">
-          <AiArchitectTab />
+        <TabsContent
+          value="architect"
+          className="min-h-0 flex-col overflow-hidden data-active:flex data-inactive:hidden"
+        >
+          <AiArchitectTab roomId={roomId} />
         </TabsContent>
-        <TabsContent value="specs" className="min-h-0 data-inactive:hidden">
+        <TabsContent
+          value="specs"
+          className="min-h-0 flex-col overflow-hidden data-active:flex data-inactive:hidden"
+        >
           <SpecsTab />
         </TabsContent>
       </Tabs>

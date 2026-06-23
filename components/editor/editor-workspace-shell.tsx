@@ -110,6 +110,7 @@ export function EditorWorkspaceShell({
 
           <AiSidebar
             isOpen={isAiSidebarOpen}
+            roomId={roomId}
             onClose={() => setIsAiSidebarOpen(false)}
           />
         </EditorRealtimeRoom>

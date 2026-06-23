@@ -2,6 +2,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "@/app/generated/prisma/client";
 
+const PRISMA_CLIENT_CACHE_VERSION = "task-run-model-v1";
+
 function createPrismaClient() {
   const databaseUrl = process.env.DATABASE_URL;
 
@@ -24,9 +26,21 @@ function createPrismaClient() {
 
 const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: PrismaClient;
+  prismaCacheVersion?: string;
 };
 
 export const prisma =
   process.env.NODE_ENV === "production"
     ? createPrismaClient()
-    : (globalForPrisma.prisma ??= createPrismaClient());
+    : (() => {
+        if (
+          !globalForPrisma.prisma ||
+          globalForPrisma.prismaCacheVersion !== PRISMA_CLIENT_CACHE_VERSION ||
+          !globalForPrisma.prisma.taskRun
+        ) {
+          globalForPrisma.prisma = createPrismaClient();
+          globalForPrisma.prismaCacheVersion = PRISMA_CLIENT_CACHE_VERSION;
+        }
+
+        return globalForPrisma.prisma;
+      })();
