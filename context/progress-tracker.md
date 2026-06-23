@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 27 (Spec Generation Flow) — complete
+- Feature 28 (Spec Persistence Download) — complete
 
 ## Current Goal
 
-- Feature 27 is complete: backend spec generation flow now has `/api/ai/spec`, `/api/ai/spec/token`, the `generate-spec` Trigger.dev task, Zod validation, and TaskRun ownership tracking.
+- Feature 28 is complete: generated Markdown specs are uploaded to Vercel Blob, `ProjectSpec` metadata is stored in Prisma, and project-scoped downloads are served through a secure API route.
 
 ## Completed
 
@@ -39,6 +39,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 25 (23/06/26): Sidebar Chat Feed — `ai-chat` added as a separate Liveblocks Storage feed, `types/tasks.ts` now defines Zod-validated chat message payloads with sender, role, content, and timestamp, AI sidebar renders validated room chat messages in order with sender/time/content, the existing sidebar input sends user messages to `ai-chat` without triggering backend AI tasks, and send failures show a small inline error. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 26 (23/06/26): Design Agent Frontend — AI sidebar prompt submission now writes the user message to `ai-chat`, calls `POST /api/ai/design` with the active room ID, stores returned `runId`/`publicToken`, tracks the run with `useRealtimeRun`, disables input and shows a compact status strip only while the run is active, writes final success/error AI messages back to `ai-chat`, and relies on Liveblocks React Flow for realtime canvas updates. `/api/ai/design` now returns a run-scoped public token with the run ID. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 27 (23/06/26): Spec Generation Flow — `POST /api/ai/spec` added with Zod validation for `roomId`, `chatHistory`, `nodes`, and `edges`, room-derived project access checks, `generate-spec` Trigger.dev task triggering, and TaskRun persistence; `POST /api/ai/spec/token` added with run-owner verification and 1-hour run-scoped public token issuance; `trigger/generate-spec.ts` added to validate payloads, generate Markdown technical specs with Gemini, update Trigger.dev run metadata, and return generated content as task output without storing the final spec. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 28 (23/06/26): Spec Persistence Download — `ProjectSpec` Prisma model and migration added for spec metadata, `generate-spec` now uploads generated Markdown to private Vercel Blob storage and creates a project-linked `ProjectSpec`, and `GET /api/projects/[projectId]/specs/[specId]/download` verifies project access plus spec ownership before returning a Markdown attachment without exposing Blob URLs. `npx prisma format`, `npx prisma validate`, `npx prisma migrate dev --name add_project_specs`, `npx prisma generate`, `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -46,7 +47,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Feature 28 spec when ready.
+- Feature 29 spec when ready.
 
 ## Open Questions
 
@@ -141,10 +142,20 @@ Update this file whenever the current phase, active feature, or implementation s
 - AI sidebar submit first records the user prompt in `ai-chat`, then starts the design agent run through `/api/ai/design`; canvas changes are never manually mirrored by the sidebar and arrive through the existing Liveblocks React Flow room.
 - Trigger.dev realtime run subscriptions use the run-scoped `publicToken` returned by `/api/ai/design`; final frontend status is written as an assistant message into `ai-chat`.
 - Spec generation backend starts from `roomId` as the trusted project identifier; client-supplied project IDs are ignored for access control.
-- Spec generation output remains plain Markdown task output for now; persistence to Blob/database is deferred to a later feature.
+- Spec generation uploads Markdown to Vercel Blob at `specs/{projectId}/{specId}.md`; Prisma stores only `ProjectSpec` metadata and the Blob URL in `filePath`.
+- Spec downloads go through `GET /api/projects/[projectId]/specs/[specId]/download`, which verifies the authenticated user's project access and that the spec belongs to the project before returning a Markdown attachment.
+- Blob URLs for generated specs are not exposed directly to users; download routes fetch Blob content server-side.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/28-spec-persistence-download.md`.
+- Read the spec persistence/download spec and confirmed scope is backend persistence/download only: no frontend or UI logic, no Prisma content storage, and no canvas persistence changes.
+- Re-read `context/project-overview.md` and `context/architecture-context.md`; Prisma should store spec metadata while Vercel Blob stores Markdown content.
+- Added `ProjectSpec` to Prisma with a project relation, `filePath`, `createdAt`, cascade delete, and a project/date index.
+- Applied migration `20260623120636_add_project_specs` and regenerated Prisma Client.
+- Updated `trigger/generate-spec.ts` so completed specs are uploaded to private Vercel Blob storage and recorded in `ProjectSpec` before the task returns.
+- Added secure spec download route at `app/api/projects/[projectId]/specs/[specId]/download/route.ts`.
+- Verification: `npx prisma format` passes; `npx prisma validate` passes; `npx prisma migrate dev --name add_project_specs` passes; `npx prisma generate` passes; `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/27-spec-generation-flow.md`.
 - Read the spec generation flow spec and confirmed scope is backend-only: no frontend logic, no spec editor UI, and no final spec persistence in this unit.
 - Read `context/project-overview.md` and `context/architecture-context.md`; spec generation should be a durable Trigger.dev workflow that returns Markdown from canvas/chat context.

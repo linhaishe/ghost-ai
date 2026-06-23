@@ -1,9 +1,11 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { logger, metadata, task } from "@trigger.dev/sdk/v3";
+import { put } from "@vercel/blob";
 import { generateText } from "ai";
 import { ProxyAgent, fetch as undiciFetch } from "undici";
 import { z } from "zod";
 
+import { prisma } from "@/lib/prisma";
 import { aiChatFeedMessageSchema } from "@/types/tasks";
 
 const canvasPositionSchema = z.object({
@@ -159,6 +161,30 @@ function buildSpecPrompt(payload: GenerateSpecPayload) {
   ].join("\n");
 }
 
+async function persistSpec(projectId: string, content: string) {
+  const specId = crypto.randomUUID();
+  const pathname = `specs/${projectId}/${specId}.md`;
+  const blob = await put(pathname, content, {
+    access: "private",
+    allowOverwrite: false,
+    contentType: "text/markdown; charset=utf-8",
+    cacheControlMaxAge: 60,
+  });
+
+  await prisma.projectSpec.create({
+    data: {
+      id: specId,
+      projectId,
+      filePath: blob.url,
+    },
+  });
+
+  return {
+    specId,
+    filePath: blob.url,
+  };
+}
+
 export const generateSpec = task({
   id: "generate-spec",
   run: async (rawPayload: GenerateSpecPayload) => {
@@ -192,10 +218,15 @@ export const generateSpec = task({
 
       const content = result.text.trim();
 
+      await metadata.set("status", "persisting").set("progress", 0.8).flush();
+
+      const persistedSpec = await persistSpec(payload.projectId, content);
+
       await metadata
         .set("status", "completed")
         .set("progress", 1)
         .set("outputLength", content.length)
+        .set("specId", persistedSpec.specId)
         .flush();
 
       logger.info("Spec generation task completed", {
@@ -207,6 +238,8 @@ export const generateSpec = task({
       return {
         ok: true,
         content,
+        specId: persistedSpec.specId,
+        filePath: persistedSpec.filePath,
       };
     } catch (error) {
       const message = formatError(error);
