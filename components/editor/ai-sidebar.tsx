@@ -3,9 +3,17 @@
 import { useMutation, useOthers, useSelf, useStorage } from "@liveblocks/react/suspense";
 import { useRealtimeRun } from "@trigger.dev/react-hooks";
 import { Bot, Download, FileText, Loader2, Send, Sparkles, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -47,10 +55,46 @@ const FINISHED_RUN_STATUSES = [
   "TIMED_OUT",
 ] as const;
 
+interface ProjectSpecListItem {
+  id: string;
+  createdAt: string;
+  filename: string;
+}
+
 function formatMessageTime(timestamp: string) {
   return new Date(timestamp).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+function formatSpecDate(timestamp: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+function parseSpecsPayload(payload: { specs?: unknown }) {
+  if (!Array.isArray(payload.specs)) {
+    throw new Error("Specs response was invalid.");
+  }
+
+  return payload.specs.filter((spec): spec is ProjectSpecListItem => {
+    if (!spec || typeof spec !== "object") {
+      return false;
+    }
+
+    const candidate = spec as Partial<ProjectSpecListItem>;
+
+    return (
+      typeof candidate.id === "string" &&
+      typeof candidate.createdAt === "string" &&
+      typeof candidate.filename === "string"
+    );
   });
 }
 
@@ -377,41 +421,394 @@ function AiArchitectTab({ roomId }: { roomId: string }) {
   );
 }
 
-function SpecsTab() {
+function MarkdownPreview({ content }: { content: string }) {
+  const lines = content.split(/\r?\n/);
+  const blocks: ReactNode[] = [];
+  let listItems: string[] = [];
+  let codeLines: string[] = [];
+  let isCodeBlock = false;
+
+  const flushList = () => {
+    if (listItems.length === 0) {
+      return;
+    }
+
+    const items = listItems;
+    const key = blocks.length;
+
+    blocks.push(
+      <ul key={`list-${key}`} className="my-4 list-disc space-y-2 pl-5 text-sm leading-6 text-copy-muted">
+        {items.map((item, index) => (
+          <li key={`${item}-${index}`}>{item}</li>
+        ))}
+      </ul>,
+    );
+    listItems = [];
+  };
+
+  const flushCode = () => {
+    const code = codeLines.join("\n");
+    const key = blocks.length;
+
+    blocks.push(
+      <pre
+        key={`code-${key}`}
+        className="my-4 overflow-x-auto rounded-xl border border-surface-border bg-base p-4 text-xs leading-6 text-copy-primary"
+      >
+        <code>{code}</code>
+      </pre>,
+    );
+    codeLines = [];
+  };
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("```")) {
+      if (isCodeBlock) {
+        flushCode();
+        isCodeBlock = false;
+      } else {
+        flushList();
+        isCodeBlock = true;
+      }
+
+      return;
+    }
+
+    if (isCodeBlock) {
+      codeLines.push(line);
+      return;
+    }
+
+    if (!trimmed) {
+      flushList();
+      return;
+    }
+
+    const listMatch = trimmed.match(/^[-*]\s+(.+)$/);
+
+    if (listMatch) {
+      listItems.push(listMatch[1]);
+      return;
+    }
+
+    flushList();
+
+    if (trimmed.startsWith("# ")) {
+      blocks.push(
+        <h1 key={`h1-${index}`} className="mb-5 text-2xl font-semibold text-copy-primary">
+          {trimmed.slice(2)}
+        </h1>,
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("## ")) {
+      blocks.push(
+        <h2 key={`h2-${index}`} className="mb-3 mt-6 text-lg font-semibold text-copy-primary">
+          {trimmed.slice(3)}
+        </h2>,
+      );
+      return;
+    }
+
+    if (trimmed.startsWith("### ")) {
+      blocks.push(
+        <h3 key={`h3-${index}`} className="mb-2 mt-5 text-base font-semibold text-copy-primary">
+          {trimmed.slice(4)}
+        </h3>,
+      );
+      return;
+    }
+
+    blocks.push(
+      <p key={`p-${index}`} className="my-3 text-sm leading-7 text-copy-muted">
+        {trimmed}
+      </p>,
+    );
+  });
+
+  flushList();
+
+  if (isCodeBlock) {
+    flushCode();
+  }
+
+  return <div className="space-y-1">{blocks}</div>;
+}
+
+function SpecsTab({ roomId }: { roomId: string }) {
+  const [specs, setSpecs] = useState<ProjectSpecListItem[]>([]);
+  const [selectedSpec, setSelectedSpec] = useState<ProjectSpecListItem | null>(null);
+  const [previewContent, setPreviewContent] = useState("");
+  const [isLoadingSpecs, setIsLoadingSpecs] = useState(true);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [specsError, setSpecsError] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const getDownloadUrl = useCallback(
+    (specId: string) => `/api/projects/${roomId}/specs/${specId}/download`,
+    [roomId],
+  );
+
+  const loadSpecs = useCallback(async () => {
+    setIsLoadingSpecs(true);
+    setSpecsError(null);
+
+    try {
+      const response = await fetch(`/api/projects/${roomId}/specs`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("Specs could not be loaded.");
+      }
+
+      const payload = (await response.json()) as { specs?: unknown };
+
+      setSpecs(parseSpecsPayload(payload));
+    } catch {
+      setSpecsError("Specs could not be loaded.");
+    } finally {
+      setIsLoadingSpecs(false);
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadInitialSpecs() {
+      try {
+        const response = await fetch(`/api/projects/${roomId}/specs`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Specs could not be loaded.");
+        }
+
+        const payload = (await response.json()) as { specs?: unknown };
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSpecs(parseSpecsPayload(payload));
+        setSpecsError(null);
+      } catch {
+        if (isMounted) {
+          setSpecsError("Specs could not be loaded.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingSpecs(false);
+        }
+      }
+    }
+
+    void loadInitialSpecs();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [roomId]);
+
+  const openPreview = useCallback(
+    async (spec: ProjectSpecListItem) => {
+      setSelectedSpec(spec);
+      setPreviewContent("");
+      setPreviewError(null);
+      setIsLoadingPreview(true);
+
+      try {
+        const response = await fetch(getDownloadUrl(spec.id), {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Spec content could not be loaded.");
+        }
+
+        setPreviewContent(await response.text());
+      } catch {
+        setPreviewError("Spec content could not be loaded.");
+      } finally {
+        setIsLoadingPreview(false);
+      }
+    },
+    [getDownloadUrl],
+  );
+
+  const downloadSpec = useCallback(
+    (specId: string) => {
+      window.location.href = getDownloadUrl(specId);
+    },
+    [getDownloadUrl],
+  );
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 p-5">
-      <Button type="button" className="bg-ai text-white hover:bg-ai/90">
-        <Sparkles className="h-4 w-4" />
-        Generate Spec
-      </Button>
-
-      <div className="rounded-2xl border border-surface-border bg-elevated p-5 shadow-xl">
-        <div className="flex items-start gap-4">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-ai/20 text-ai-text">
-            <FileText className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-semibold text-primary-text">
-              System Architecture Spec
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-muted-text">
-              A generated technical specification will summarize services, data flow,
-              dependencies, and deployment notes from the current canvas.
-            </p>
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          disabled
-          className="mt-5 w-full border-surface-border bg-transparent text-copy-muted"
-        >
-          <Download className="h-4 w-4" />
-          Download unavailable
+    <>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 p-5">
+        <Button type="button" className="bg-ai text-white hover:bg-ai/90">
+          <Sparkles className="h-4 w-4" />
+          Generate Spec
         </Button>
+
+        <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-surface-border bg-elevated shadow-xl">
+          <div className="flex items-center justify-between border-b border-surface-border px-4 py-3">
+            <div>
+              <h3 className="text-sm font-semibold text-primary-text">Generated Specs</h3>
+              <p className="mt-1 text-xs text-muted-text">
+                {specs.length === 1 ? "1 saved spec" : `${specs.length} saved specs`}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Refresh specs"
+              onClick={loadSpecs}
+              disabled={isLoadingSpecs}
+            >
+              {isLoadingSpecs ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-2 p-3">
+              {isLoadingSpecs ? (
+                <div className="flex items-center gap-3 rounded-xl border border-surface-border bg-base/60 px-3 py-4 text-sm text-muted-text">
+                  <Loader2 className="h-4 w-4 animate-spin text-ai-text" />
+                  Loading specs...
+                </div>
+              ) : null}
+
+              {!isLoadingSpecs && specsError ? (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-4 text-sm text-copy-primary">
+                  {specsError}
+                </div>
+              ) : null}
+
+              {!isLoadingSpecs && !specsError && specs.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-surface-border bg-base/50 px-4 py-6 text-center">
+                  <div className="mx-auto flex size-10 items-center justify-center rounded-2xl bg-ai/20 text-ai-text">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-primary-text">No specs yet</p>
+                  <p className="mt-2 text-xs leading-5 text-muted-text">
+                    Generated Markdown specs will appear here.
+                  </p>
+                </div>
+              ) : null}
+
+              {!isLoadingSpecs && !specsError
+                ? specs.map((spec) => (
+                    <div
+                      key={spec.id}
+                      className="group flex w-full items-center gap-3 rounded-xl border border-surface-border bg-base/55 p-3 text-left transition hover:border-ai/40 hover:bg-subtle"
+                    >
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                        onClick={() => openPreview(spec)}
+                      >
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-ai/15 text-ai-text">
+                          <FileText className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-copy-primary">
+                            {spec.filename}
+                          </span>
+                          <time
+                            dateTime={spec.createdAt}
+                            className="mt-1 block text-xs text-muted-text"
+                          >
+                            {formatSpecDate(spec.createdAt)}
+                          </time>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-copy-muted transition hover:bg-elevated hover:text-copy-primary"
+                        aria-label={`Download ${spec.filename}`}
+                        onClick={() => downloadSpec(spec.id)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))
+                : null}
+            </div>
+          </ScrollArea>
+        </div>
       </div>
-    </div>
+
+      <Dialog
+        open={Boolean(selectedSpec)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedSpec(null);
+            setPreviewContent("");
+            setPreviewError(null);
+          }
+        }}
+      >
+        <DialogContent className="flex max-h-[82vh] max-w-3xl flex-col overflow-hidden border-surface-border bg-base p-0 text-copy-primary">
+          <DialogHeader className="border-b border-surface-border px-6 py-5">
+            <div className="flex items-start gap-4 pr-8">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-ai/20 text-ai-text">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="truncate text-lg font-semibold text-copy-primary">
+                  {selectedSpec?.filename ?? "Generated Spec"}
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-sm text-copy-muted">
+                  {selectedSpec ? formatSpecDate(selectedSpec.createdAt) : "Markdown preview"}
+                </DialogDescription>
+              </div>
+              {selectedSpec ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 border-surface-border bg-transparent text-copy-primary"
+                  onClick={() => downloadSpec(selectedSpec.id)}
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
+              ) : null}
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="px-6 py-5">
+              {isLoadingPreview ? (
+                <div className="flex min-h-64 items-center justify-center gap-3 text-sm text-muted-text">
+                  <Loader2 className="h-4 w-4 animate-spin text-ai-text" />
+                  Loading preview...
+                </div>
+              ) : null}
+
+              {!isLoadingPreview && previewError ? (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-copy-primary">
+                  {previewError}
+                </div>
+              ) : null}
+
+              {!isLoadingPreview && !previewError ? (
+                <MarkdownPreview content={previewContent} />
+              ) : null}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -473,7 +870,7 @@ export function AiSidebar({ isOpen, roomId, onClose }: AiSidebarProps) {
           value="specs"
           className="min-h-0 flex-col overflow-hidden data-active:flex data-inactive:hidden"
         >
-          <SpecsTab />
+          <SpecsTab roomId={roomId} />
         </TabsContent>
       </Tabs>
     </aside>

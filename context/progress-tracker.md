@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 28 (Spec Persistence Download) — complete
+- Feature 29 (Spec UI Integration) — complete
 
 ## Current Goal
 
-- Feature 28 is complete: generated Markdown specs are uploaded to Vercel Blob, `ProjectSpec` metadata is stored in Prisma, and project-scoped downloads are served through a secure API route.
+- Feature 29 is complete: the AI sidebar Specs tab lists persisted specs, opens Markdown previews through project-scoped APIs, and provides download actions.
 
 ## Completed
 
@@ -40,6 +40,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 26 (23/06/26): Design Agent Frontend — AI sidebar prompt submission now writes the user message to `ai-chat`, calls `POST /api/ai/design` with the active room ID, stores returned `runId`/`publicToken`, tracks the run with `useRealtimeRun`, disables input and shows a compact status strip only while the run is active, writes final success/error AI messages back to `ai-chat`, and relies on Liveblocks React Flow for realtime canvas updates. `/api/ai/design` now returns a run-scoped public token with the run ID. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 27 (23/06/26): Spec Generation Flow — `POST /api/ai/spec` added with Zod validation for `roomId`, `chatHistory`, `nodes`, and `edges`, room-derived project access checks, `generate-spec` Trigger.dev task triggering, and TaskRun persistence; `POST /api/ai/spec/token` added with run-owner verification and 1-hour run-scoped public token issuance; `trigger/generate-spec.ts` added to validate payloads, generate Markdown technical specs with Gemini, update Trigger.dev run metadata, and return generated content as task output without storing the final spec. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 28 (23/06/26): Spec Persistence Download — `ProjectSpec` Prisma model and migration added for spec metadata, `generate-spec` now uploads generated Markdown to private Vercel Blob storage and creates a project-linked `ProjectSpec`, and `GET /api/projects/[projectId]/specs/[specId]/download` verifies project access plus spec ownership before returning a Markdown attachment without exposing Blob URLs. `npx prisma format`, `npx prisma validate`, `npx prisma migrate dev --name add_project_specs`, `npx prisma generate`, `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 29 (23/06/26): Spec UI Integration — `GET /api/projects/[projectId]/specs` added to return authenticated project-scoped spec metadata, the AI sidebar Specs tab now loads compact spec cards with filename and created date, selected specs open in a shadcn Dialog with ScrollArea Markdown preview fetched through the download endpoint, and list/modal download actions use the secure download route. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -47,7 +48,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Feature 29 spec when ready.
+- Feature 30 spec when ready.
 
 ## Open Questions
 
@@ -145,9 +146,16 @@ Update this file whenever the current phase, active feature, or implementation s
 - Spec generation uploads Markdown to Vercel Blob at `specs/{projectId}/{specId}.md`; Prisma stores only `ProjectSpec` metadata and the Blob URL in `filePath`.
 - Spec downloads go through `GET /api/projects/[projectId]/specs/[specId]/download`, which verifies the authenticated user's project access and that the spec belongs to the project before returning a Markdown attachment.
 - Blob URLs for generated specs are not exposed directly to users; download routes fetch Blob content server-side.
+- Spec UI reads only project-scoped metadata from `GET /api/projects/[projectId]/specs`; preview content is fetched through the existing secure download route and kept only in modal-local component state.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/29-spec-ui-integration.md`.
+- Read the spec UI integration spec and confirmed scope is existing AI sidebar UI: compact spec list, modal preview, and download actions without Blob URL exposure or global state.
+- Added `GET /api/projects/[projectId]/specs` for authenticated spec metadata listing without exposing Blob URLs.
+- Replaced the placeholder Specs tab card with a compact scrollable spec list, loading/error/empty states, metadata refresh action, Markdown preview dialog, and list/modal download actions.
+- Preview fetches Markdown through the secure download endpoint and renders a lightweight Markdown view without storing content outside the modal state.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/28-spec-persistence-download.md`.
 - Read the spec persistence/download spec and confirmed scope is backend persistence/download only: no frontend or UI logic, no Prisma content storage, and no canvas persistence changes.
 - Re-read `context/project-overview.md` and `context/architecture-context.md`; Prisma should store spec metadata while Vercel Blob stores Markdown content.
