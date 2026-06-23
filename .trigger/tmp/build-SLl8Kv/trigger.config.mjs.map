@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../trigger.config.ts"],
+  "sourcesContent": ["import { defineConfig } from \"@trigger.dev/sdk/v3\";\n\nexport default defineConfig({\n  project: process.env.TRIGGER_PROJECT_REF ?? \"proj_ghost_ai\",\n  dirs: [\"trigger\"],\n  maxDuration: 300,\n  enableConsoleLogging: true,\n  runtime: 'node',\n  build: {}\n});\nexport const resolveEnvVars = undefined;"],
+  "mappings": ";;;;;;;;;;;;AAAA;AAEA,IAAO,yBAAQ,aAAa;AAAA,EAC1B,SAAS,QAAQ,IAAI,uBAAuB;AAAA,EAC5C,MAAM,CAAC,SAAS;AAAA,EAChB,aAAa;AAAA,EACb,sBAAsB;AAAA,EACtB,SAAS;AAAA,EACT,OAAO,CAAC;AACV,CAAC;AACM,IAAM,iBAAiB;",
+  "names": []
+}

@@ -1,0 +1,112 @@
+{
+  "build": {
+  },
+  "cliPackageVersion": "4.4.6",
+  "config": {
+    "dirs": [
+      "trigger"
+    ],
+    "project": "proj_vjtsjdpfszqmqqyjyneu"
+  },
+  "configPath": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/trigger.config.mjs",
+  "contentHash": "02b884e705c67e993190f4fbb0c6fcff",
+  "customConditions": [
+  ],
+  "deploy": {
+    "env": {
+    }
+  },
+  "environment": "dev",
+  "externals": [
+    {
+      "name": "utf-8-validate",
+      "version": "6.0.6"
+    },
+    {
+      "name": "bufferutil",
+      "version": "4.1.0"
+    },
+    {
+      "name": "import-in-the-middle",
+      "version": "1.15.0"
+    }
+  ],
+  "files": [
+    {
+      "entry": "trigger/design-agent.ts",
+      "out": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/trigger/design-agent.mjs"
+    }
+  ],
+  "indexWorkerEntryPoint": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/node_modules/trigger.dev/dist/esm/entryPoints/dev-index-worker.mjs",
+  "otelImportHook": {
+    "include": [
+    ]
+  },
+  "outputHashes": {
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-244PAGAH.mjs": "MKUfkr/RxtE",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-244PAGAH.mjs.map": "5cjM5D5eV/w",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-5WAYWS7P.mjs": "lfuEiqoumTM",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-5WAYWS7P.mjs.map": "EhKEr8POYWs",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-BSH2TD44.mjs": "CZ5PF0JHUs8",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-BSH2TD44.mjs.map": "s44f3ZLy2qk",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-EZYTH4GF.mjs": "KJA3TpOpziM",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-EZYTH4GF.mjs.map": "lClc2UqpqQw",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-IB4V73K4.mjs": "Z5jAUjgrZzo",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-IB4V73K4.mjs.map": "fhm3KjIkXa0",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-L6Z3VHPF.mjs": "sQeQQZ+VeII",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-L6Z3VHPF.mjs.map": "OIcd4Wn4cW8",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-Q4DP3R4W.mjs": "CNui22f2LH4",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-Q4DP3R4W.mjs.map": "RaktTLRo7rE",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-TBVCIARY.mjs": "RWfLebqPg3M",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-TBVCIARY.mjs.map": "QqihrPYN8OA",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-USHNXJ63.mjs": "RkI7ln77K/4",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/chunk-USHNXJ63.mjs.map": "LMPzUuAiOIM",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/crypto.node-FURLATZW.mjs": "zGJ8Kk+9yxY",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/crypto.node-FURLATZW.mjs.map": "0b4tlwmkM3g",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/esm-3JMIGGOE.mjs": "26nm/p6TwVs",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/esm-3JMIGGOE.mjs.map": "CSvtQ8IwLEk",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/getMachineId-bsd-ICCT6NPV.mjs": "LJHfHsAvj5I",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/getMachineId-bsd-ICCT6NPV.mjs.map": "MEVdITbbMCE",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/getMachineId-darwin-UP5KMLAI.mjs": "ZCtsOQWqqIk",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/getMachineId-darwin-UP5KMLAI.mjs.map": "hd3Uo5mbO8o",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/getMachineId-linux-P4XYM4UK.mjs": "nc6O1EA13f4",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/getMachineId-linux-P4XYM4UK.mjs.map": "LR3Lh4qLcJM",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/getMachineId-unsupported-BPADDXCQ.mjs": "NTJ9Kvti624",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/getMachineId-unsupported-BPADDXCQ.mjs.map": "2eHyOg8TCJ4",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/getMachineId-win-CJOVSEAP.mjs": "E/NYVdqqvSI",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/getMachineId-win-CJOVSEAP.mjs.map": "p2vMLwR5uFk",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/node_modules/trigger.dev/dist/esm/entryPoints/dev-index-worker.mjs": "Co7YltKpzrs",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/node_modules/trigger.dev/dist/esm/entryPoints/dev-index-worker.mjs.map": "byDPVwk+ojk",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/node_modules/trigger.dev/dist/esm/entryPoints/dev-run-worker.mjs": "PtHgWwGFjWU",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/node_modules/trigger.dev/dist/esm/entryPoints/dev-run-worker.mjs.map": "vwXtss3QBX0",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/s2s-R5MD22EM.mjs": "dWZIrBK2MZ0",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/s2s-R5MD22EM.mjs.map": "m9pZ2T5fXwA",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/trigger.config.mjs": "qltMFA/9pkA",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/trigger.config.mjs.map": "NFG/qf1iQD8",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/trigger/design-agent.mjs": "rASOXDQRoTk",
+    "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/trigger/design-agent.mjs.map": "Msqg85Bo1xI"
+  },
+  "outputPath": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv",
+  "packageVersion": "4.4.6",
+  "runWorkerEntryPoint": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/node_modules/trigger.dev/dist/esm/entryPoints/dev-run-worker.mjs",
+  "runtime": "node",
+  "sources": {
+    "package.json": {
+      "contentHash": "4116f0b0894406bb4dea118fda70f2b8",
+      "contents": "eJyNVMtu4yAU3fsrkNcFP8ZNmqxmMd8RicCtwwSDBdhJVPXfR2Bsk6RVZ2fOOb7PAx8ZQrmiHeR7lLcnbR2mIn/x6AjGCq08UZKKlBPaGzFS5+XODBAgy4zonc336CNDCKGcw+j/UnB1yH+/TPBxEJIvxHSKlHXUuIWaTpGSQgUGbPiKqDOibcHsY6p4TLOtil7q270oIBlCn6F+Dj0oDooJSJr4zSSYc+EL+uvh/LAlr2Q7h4/0IAJVkbqME/KcFCMcpWZnWzApYGrg8OtbkdIcfpAYoOynMEGD36W+/Jcw1v4g642wHS0op70Dg/s29v72rEl6u+fjpAmHsbD8HBQNachmUYxgGMjiKPUxsDVpSLWw15tvIum5qklVrQmYpNbikRpBFQNMB3fSRriw5UNJtmsoJu01JqhWlGsHapwib0lD6sVsAxMccJKY1ElebwYPVxtSk92MxhG9kbpepYZyccWLPTYJMwevdqQmzR2Mue6eKXuinKk4xXQOjgp5EYrjDkw7OyhJlezheQfugqkSHXWAmbWxzoaU6cUY/3x9N+bEzNqi19bNAZrVArceEmPX5QOzDi0138Ql4999Rc1TSuj4OnjwAcNMq3fR4m92F5z8bOGkwfvGXPRT47e9or648AwG8jXMMPvM/gHviGl+"
+    },
+    "trigger.config.ts": {
+      "contentHash": "8a555efcdb57a69bdcc55d25ce360bdf",
+      "contents": "eJxVjUFrAjEQhe/5FUMuWpBV8BYPCnYVS8GyeCuyRDObju5mZJJdBPG/l5RevD2+9z4edTeWBA9w2FDANYeGPDyhEe5Ar5KQ9yiFw2Ea3XU6zPVCKbz/SQ4b27fpRR0/FMBN+ILnZHI4Y4wFhqE4VLvttqzqr2r/Ua4PdVVuYLkEnce1/+GYakt6ogAcSTTwrf/P9THDzt7fe7GJOBiYz2aZYbCnNh9HbvGTvafgDSTpMbfSh0QdGhgFdjhSz7eF+gVYX09v"
+    },
+    "trigger/design-agent.ts": {
+      "contentHash": "a7ed5d0ea56f9fadd359ceda5e6ec32d",
+      "contents": "eJytkL1uwzAMhHc9xUGTA6jO0M1Gihbo0q1DX0CwaENILBmUYjQI/O6FflIvHbuJPPLjney8eI644+KniVgh6nDGhpH9DPka2aZ2a2g9BnM+rs+yF4K+85J1kXjUA+Gdgp3c20QufurbxWuDuwAW9vMSO4TI1k29ANj7+cPsne0XNngXIswO+kpGTtlPk2DWdJBFf9JpQKoEvLoOOtzcgGYpp7s/7BxwesmWUIO21o2+kWUSmVeiMw1kVzKoNKnq3h6nKm2pVVUf0R5qqYu6HXqRH0zxyu4/iOk3NyUS+Qfw5ZJU"
+    },
+    "tsconfig.json": {
+      "contentHash": "02fc19ad21338c2ab820a70136310db4",
+      "contents": "eJxtUU1Lw0AQvedXLHMMbaJehJ4E6cFiEfRYimyyQ7t2v9id1EjJf5fdJNVET8O892b2vdlLxhjUVjup0L84ktYEWLFLxhhjQNwfkGDFYP12d3N7D4seV7KCFduBsBoWLJZCEnpeKYw9BoMtwX5Qc6Xs5yauJd/gAIaTdM+yejxifZox5GVNU8zYtZYzDMPWikbhkyH01k1JnajofDAzwV8xWNXEsFFRNUYo9KPER/KMm2DNdtzya7MMVnFC0XOzVB+hjRs98pqWsRmHTO1RoyGupgNONQeZTr5LABtO36fmOkVIAQa4S3U8reN0/PkvxuChzNPPFGUO+2wc6KI8mlCNwOtbae8SzbkQBYXRap6X+d/2mqSIQyV9OQzlTNpTAs//06nVFGKS5B+wvRoCYwW+6+Gm+6zLvgEbXbUJ"
+    }
+  },
+  "target": "dev"
+}

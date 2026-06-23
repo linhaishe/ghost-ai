@@ -1,0 +1,23 @@
+{
+  "configPath": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/trigger.config.mjs",
+  "customConditions": [
+  ],
+  "prompts": [
+  ],
+  "queues": [
+  ],
+  "runtime": "node",
+  "runtimeVersion": "22.19.0",
+  "tasks": [
+    {
+      "entryPoint": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/trigger/design-agent.mjs",
+      "filePath": "trigger/design-agent.ts",
+      "id": "design-agent",
+      "maxDuration": 300
+    }
+  ],
+  "timings": {
+    "trigger/design-agent.ts": 0.3736249999999899
+  },
+  "workerEntryPoint": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-SLl8Kv/node_modules/trigger.dev/dist/esm/entryPoints/dev-run-worker.mjs"
+}
