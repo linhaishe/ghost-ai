@@ -1,6 +1,6 @@
 import type { LiveblocksFlow } from "@liveblocks/react-flow";
 
-import type { CanvasEdge, CanvasNode } from "@/types/canvas";
+import type { AiStatusMessage, CanvasEdge, CanvasNode } from "@/types/canvas";
 
 declare global {
   interface Liveblocks {
@@ -13,8 +13,9 @@ declare global {
     };
 
     Storage: {
-      flow: LiveblocksFlow<CanvasNode, CanvasEdge>;
-    } | Record<string, never>;
+      flow?: LiveblocksFlow<CanvasNode, CanvasEdge>;
+      aiStatus?: AiStatusMessage[];
+    };
 
     UserMeta: {
       id: string;

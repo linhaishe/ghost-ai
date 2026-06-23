@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 21 (Canvas Autosave) — complete
+- Feature 23 (Design Agent Logic) — complete
 
 ## Current Goal
 
-- Collaborative canvas autosave and saved canvas loading through Vercel Blob are implemented.
+- Feature 23 is complete: the Trigger.dev design agent interprets prompts with Gemini, mutates the existing Liveblocks React Flow canvas, and surfaces AI status/presence.
 
 ## Completed
 
@@ -33,6 +33,8 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 19 (22/06/26): Presence Avatars + Cursor — editor canvas now renders a room-only top-right participant group with collaborator avatars, overflow chip, conditional divider, and current Clerk `UserButton`; collaborators exclude the active Clerk user; Liveblocks presence now uses `cursor` plus `thinking`; React Flow mouse movement broadcasts cursor coordinates and mouse leave clears them; remote collaborator cursors render with colored pointer badges. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 20 (22/06/26): AI Sidebar Shell — floating AI sidebar extracted into `components/editor/ai-sidebar.tsx` while preserving parent-controlled open/close and right-side slide animation; header, close button, AI Architect and Specs tabs, chat empty state, starter prompt chips, auto-resizing prompt textarea, send behavior, Generate Spec button, and static demo spec card added. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 21 (22/06/26): Canvas Autosave — `@vercel/blob` installed, existing `Project.canvasJsonPath` reused for the saved canvas blob URL, `GET`/`PUT /api/projects/[projectId]/canvas` added for loading and saving canvas JSON through Vercel Blob, debounced `useCanvasAutosave` hook added with `saving`/`saved`/`error` state, editor loads saved canvas only when the Liveblocks room is empty, and the workspace Save button displays save status plus manual save. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 22 (23/06/26): Design Agent API — `POST /api/ai/design` added to validate prompt/project/room context, enforce existing project access, trigger the minimal Trigger.dev design task, create a `TaskRun` record, and return the run ID; `TaskRun` Prisma model and migration added with run ownership indexes; `POST /api/ai/design/token` added to verify run ownership and return a Trigger.dev public token scoped to that run; `.trigger/**` excluded from ESLint generated-cache scanning. `npx prisma format`, `npx prisma validate`, `npx prisma migrate dev --name add_task_runs`, `npx prisma generate`, `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 23 (23/06/26): Design Agent Logic — `trigger/design-agent.ts` now uses Gemini through `@ai-sdk/google` and AI SDK structured output to plan canvas actions, applies add/move/resize/update/delete node and add/delete edge actions through `@liveblocks/react-flow/node` `mutateFlow`, validates generated shapes/colors/sizes against existing canvas constants, publishes Liveblocks-backed AI status messages, sets and clears AI presence with cursor/thinking state, and handles failures with status updates. AI sidebar prompt submission now starts the design API, and the canvas renders the shared AI status feed. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -40,7 +42,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Next feature spec.
+- Feature 24 spec when ready.
 
 ## Open Questions
 
@@ -121,9 +123,36 @@ Update this file whenever the current phase, active feature, or implementation s
 - Canvas save/load routes live under `app/api/projects/[projectId]/canvas` and enforce existing owner/collaborator access checks before reading or writing canvas data.
 - Autosave is client-side and debounced in `hooks/use-canvas-autosave.ts`; manual saves reuse the same API path and status state.
 - Saved canvas loading is guarded by Liveblocks room emptiness so active collaborative state is never overwritten by Blob data.
+- Trigger.dev tasks live in `trigger/`; `trigger/design-agent.ts` remains a minimal backend worker that accepts `{ prompt, roomId }` and only logs/echoes payload data for now.
+- Design generation API routes live under `/api/ai/design`; the Clerk proxy allows `/api/ai(.*)` through so handlers can return explicit JSON `401` and `403` responses.
+- Design task runs are tracked in Prisma through `TaskRun`, using Trigger.dev `runId` as the ownership lookup key and cascading deletion through the related project.
+- Run-scoped Trigger.dev public tokens are issued through `auth.createPublicToken` with `read.runs` limited to the requested run ID.
+- AI design generation uses Gemini via `@ai-sdk/google` inside the Trigger.dev task; `GEMINI_API_KEY` is read directly when creating the provider instance.
+- AI canvas mutations use `@liveblocks/react-flow/node` `mutateFlow`, preserving the existing Liveblocks React Flow storage shape and avoiding direct custom graph state.
+- AI status messages live in Liveblocks Storage as `aiStatus`, while the AI collaborator presence is published with Liveblocks node `setPresence` using the same `cursor` and `thinking` presence shape as human users.
+- AI generated canvas actions are normalized server-side against existing `CANVAS_SHAPE_DEFAULT_SIZES`, `NODE_COLORS`, `CANVAS_NODE_TYPE`, and `CANVAS_EDGE_TYPE` constants before being applied.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/23-design-agent-logic.md`.
+- Read the design agent logic spec and confirmed scope is full backend AI task execution against the existing Liveblocks React Flow room, without changing canvas architecture or introducing a separate state system.
+- Read `context/project-overview.md` and `context/architecture-context.md`; design generation should run as a durable Trigger.dev task and write structured nodes/edges into the shared Liveblocks room.
+- Read the Liveblocks best-practices skill plus the AI collaborator, multiplayer React Flow, and custom storage references; implementation will reuse the existing `@liveblocks/react-flow` storage shape and room model.
+- Added `AiStatusMessage` typing and extended `liveblocks.config.ts` Storage with `aiStatus`.
+- Added `AiStatusFeed` to the editor canvas so all room participants can see AI start, processing, success, and error messages from Liveblocks Storage.
+- Wired the AI sidebar prompt form to `POST /api/ai/design` with the active `roomId`/`projectId`.
+- Replaced the echo-only design task with a Gemini structured-planning task that reads the current canvas, creates action plans, normalizes generated output, and applies updates through `mutateFlow`.
+- Added Liveblocks AI presence updates during task start, canvas reading, and canvas application, then clears presence with a short TTL in `finally`.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
+- Started implementation of `context/feature-specs/22-design-agent-api.md`.
+- Read the design agent API spec and confirmed scope is backend task wiring only: no AI calls, no canvas writes, and no node/edge generation.
+- Confirmed the existing Trigger.dev setup already includes `trigger.config.ts` and a minimal `trigger/design-agent.ts`, so the feature reused that task pattern.
+- Added `TaskRun` to Prisma and applied migration `20260623064344_add_task_runs`.
+- Added `POST /api/ai/design` to trigger the design task, store the run ID, and return it to the client.
+- Added `POST /api/ai/design/token` to verify run ownership and issue a Trigger.dev public token scoped to that run.
+- Updated `proxy.ts` so `/api/ai(.*)` uses route-level auth checks for consistent API JSON errors.
+- Added `.trigger/**` to ESLint ignores because Trigger.dev local build output is generated cache code.
+- Verification: `npx prisma format` passes; `npx prisma validate` passes; `npx prisma migrate dev --name add_task_runs` passes; `npx prisma generate` passes; `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/21-canvas-autosave.md`.
 - Read the canvas autosave spec and confirmed `Project.canvasJsonPath` already exists, so no Prisma schema migration was needed.
 - Read the local Next 16 route handler docs and confirmed dynamic route params are Promise-based for route handlers.
@@ -263,3 +292,4 @@ Update this file whenever the current phase, active feature, or implementation s
 - npm install @prisma/client @prisma/adapter-pg dotenv pg
 - npx prisma init --output ../app/generated/prisma
 - npx skills add prisma/skills
+- npm install @trigger.dev/react-hooks@latest @ai-sdk/google ai

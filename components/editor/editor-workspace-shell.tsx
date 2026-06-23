@@ -107,7 +107,11 @@ export function EditorWorkspaceShell({
           onSaveStatusChange={setSaveStatus}
         />
 
-        <AiSidebar isOpen={isAiSidebarOpen} onClose={() => setIsAiSidebarOpen(false)} />
+        <AiSidebar
+          isOpen={isAiSidebarOpen}
+          roomId={roomId}
+          onClose={() => setIsAiSidebarOpen(false)}
+        />
       </main>
 
       <ProjectDialogs

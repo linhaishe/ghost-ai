@@ -10,6 +10,7 @@ import {
   useCanUndo,
   useOthers,
   useRedo,
+  useStorage,
   useUndo,
   useUpdateMyPresence,
 } from "@liveblocks/react/suspense";
@@ -48,7 +49,13 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { CanvasTemplate } from "@/components/editor/starter-templates";
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal";
 import { useCanvasAutosave, type CanvasSaveStatus } from "@/hooks/use-canvas-autosave";
-import type { CanvasEdge, CanvasNode, CanvasNodeShape, CanvasShapeDragPayload } from "@/types/canvas";
+import type {
+  AiStatusMessage,
+  CanvasEdge,
+  CanvasNode,
+  CanvasNodeShape,
+  CanvasShapeDragPayload,
+} from "@/types/canvas";
 import {
   DEFAULT_CANVAS_NODE_TEXT_COLOR,
   CANVAS_EDGE_TYPE,
@@ -928,6 +935,49 @@ function RemoteCursors() {
   );
 }
 
+function AiStatusFeed() {
+  const messages = useStorage((storage) => storage.aiStatus ?? []);
+  const visibleMessages = messages.slice(-4).reverse() as AiStatusMessage[];
+
+  if (!visibleMessages.length) {
+    return null;
+  }
+
+  return (
+    <div className="pointer-events-none absolute left-5 top-5 z-10 w-[min(22rem,calc(100%-2.5rem))] space-y-2">
+      {visibleMessages.map((message) => (
+        <div
+          key={message.id}
+          className="rounded-2xl border border-surface-border bg-surface/95 px-4 py-3 text-sm leading-5 text-copy-primary shadow-2xl backdrop-blur"
+        >
+          <div className="flex items-start gap-3">
+            <span
+              className="mt-1 size-2 shrink-0 rounded-full"
+              style={{
+                background:
+                  message.kind === "error"
+                    ? "var(--color-error)"
+                    : message.kind === "success"
+                      ? "var(--color-success)"
+                      : "var(--accent-ai-text)",
+              }}
+            />
+            <div className="min-w-0">
+              <p className="font-medium text-copy-primary">{message.message}</p>
+              <p className="mt-1 text-xs text-copy-faint">
+                {new Date(message.createdAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function cloneTemplateNode(node: CanvasNode): CanvasNode {
   return {
     ...node,
@@ -1419,6 +1469,7 @@ function SyncedReactFlowCanvas({
         />
       </ReactFlow>
       <RemoteCursors />
+      <AiStatusFeed />
       <ParticipantAvatarGroup />
       <CanvasControlBar
         canZoom={Boolean(reactFlowInstance)}

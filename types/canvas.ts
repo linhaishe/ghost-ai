@@ -62,6 +62,15 @@ export interface CanvasEdgeData extends Record<string, unknown> {
   label: string;
 }
 
+export type AiStatusKind = "info" | "success" | "error";
+
+export interface AiStatusMessage extends Record<string, string> {
+  id: string;
+  kind: AiStatusKind;
+  message: string;
+  createdAt: string;
+}
+
 export type CanvasNode = Node<CanvasNodeData, typeof CANVAS_NODE_TYPE>;
 
 export type CanvasEdge = Edge<CanvasEdgeData, typeof CANVAS_EDGE_TYPE>;

@@ -1,0 +1,23 @@
+{
+  "configPath": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-LegpEA/Documents/GitHub/ghost-ai/trigger.config.mjs",
+  "customConditions": [
+  ],
+  "prompts": [
+  ],
+  "queues": [
+  ],
+  "runtime": "node",
+  "runtimeVersion": "22.19.0",
+  "tasks": [
+    {
+      "entryPoint": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-LegpEA/Documents/GitHub/ghost-ai/trigger/design-agent.mjs",
+      "filePath": "trigger/design-agent.ts",
+      "id": "design-agent",
+      "maxDuration": 300
+    }
+  ],
+  "timings": {
+    "trigger/design-agent.ts": 38.96125000000001
+  },
+  "workerEntryPoint": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-LegpEA/.npm/_npx/f51a09bd0abf5f10/node_modules/trigger.dev/dist/esm/entryPoints/dev-run-worker.mjs"
+}

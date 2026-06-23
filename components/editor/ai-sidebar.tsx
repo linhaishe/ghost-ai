@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 interface AiSidebarProps {
   isOpen: boolean;
+  roomId: string;
   onClose: () => void;
 }
 
@@ -52,9 +53,10 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
   );
 }
 
-function AiArchitectTab() {
+function AiArchitectTab({ roomId }: { roomId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [prompt, setPrompt] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const hasMessages = messages.length > 0;
 
@@ -70,35 +72,80 @@ function AiArchitectTab() {
   }, []);
 
   const submitPrompt = useCallback(
-    (value = prompt) => {
+    async (value = prompt) => {
       const trimmedPrompt = value.trim();
 
-      if (!trimmedPrompt) {
+      if (!trimmedPrompt || isSubmitting) {
         return;
       }
+
+      const timestamp = Date.now();
 
       setMessages((currentMessages) => [
         ...currentMessages,
         {
-          id: `user-${Date.now()}`,
+          id: `user-${timestamp}`,
           role: "user",
           content: trimmedPrompt,
         },
         {
-          id: `assistant-${Date.now()}`,
+          id: `assistant-${timestamp}`,
           role: "assistant",
-          content: "Got it. Generation is not connected yet, but this prompt is ready for the AI workflow.",
+          content: "I’m starting the design task now. Watch the shared canvas for live updates.",
         },
       ]);
       setPrompt("");
+      setIsSubmitting(true);
 
       window.requestAnimationFrame(() => {
         if (textareaRef.current) {
           textareaRef.current.style.height = "72px";
         }
       });
+
+      try {
+        const response = await fetch("/api/ai/design", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: trimmedPrompt,
+            projectId: roomId,
+            roomId,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Design task could not be started.");
+        }
+
+        const payload = (await response.json()) as { runId?: string };
+
+        setMessages((currentMessages) => [
+          ...currentMessages,
+          {
+            id: `assistant-run-${Date.now()}`,
+            role: "assistant",
+            content: payload.runId
+              ? `Task started: ${payload.runId}`
+              : "Task started. I’ll update the shared canvas as it runs.",
+          },
+        ]);
+      } catch {
+        setMessages((currentMessages) => [
+          ...currentMessages,
+          {
+            id: `assistant-error-${Date.now()}`,
+            role: "assistant",
+            content: "I couldn’t start the design task. Please try again.",
+          },
+        ]);
+      } finally {
+        setIsSubmitting(false);
+      }
     },
-    [prompt],
+    [isSubmitting, prompt, roomId],
   );
 
   return (
@@ -163,10 +210,10 @@ function AiArchitectTab() {
               type="button"
               className="bg-ai text-white hover:bg-ai/90"
               onClick={() => submitPrompt()}
-              disabled={!prompt.trim()}
+              disabled={!prompt.trim() || isSubmitting}
             >
               <Send className="h-4 w-4" />
-              Send
+              {isSubmitting ? "Sending" : "Send"}
             </Button>
           </div>
         </div>
@@ -213,7 +260,7 @@ function SpecsTab() {
   );
 }
 
-export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
+export function AiSidebar({ isOpen, roomId, onClose }: AiSidebarProps) {
   return (
     <aside
       className={cn(
@@ -262,7 +309,7 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
         </div>
 
         <TabsContent value="architect" className="min-h-0 data-inactive:hidden">
-          <AiArchitectTab />
+          <AiArchitectTab roomId={roomId} />
         </TabsContent>
         <TabsContent value="specs" className="min-h-0 data-inactive:hidden">
           <SpecsTab />
