@@ -37,6 +37,7 @@ import {
   Diamond,
   Maximize2,
   Hexagon,
+  Loader2,
   Redo2,
   RectangleHorizontal,
   SquareRoundCorner,
@@ -50,12 +51,12 @@ import type { CanvasTemplate } from "@/components/editor/starter-templates";
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal";
 import { useCanvasAutosave, type CanvasSaveStatus } from "@/hooks/use-canvas-autosave";
 import type {
-  AiStatusMessage,
   CanvasEdge,
   CanvasNode,
   CanvasNodeShape,
   CanvasShapeDragPayload,
 } from "@/types/canvas";
+import { AI_STATUS_FEED_ID, getLatestAiStatusMessage } from "@/types/tasks";
 import {
   DEFAULT_CANVAS_NODE_TEXT_COLOR,
   CANVAS_EDGE_TYPE,
@@ -76,6 +77,11 @@ interface EditorCanvasProps {
   onStarterTemplatesOpenChange: (isOpen: boolean) => void;
   saveRequestId: number;
   onSaveStatusChange: (status: CanvasSaveStatus) => void;
+}
+
+interface EditorRealtimeRoomProps {
+  roomId: string;
+  children: ReactNode;
 }
 
 interface CanvasErrorBoundaryProps {
@@ -921,12 +927,15 @@ function RemoteCursors() {
               />
             </svg>
             <div
-              className="ml-4 mt-1 rounded-full px-2.5 py-1 text-xs font-semibold text-background shadow-lg"
+              className="ml-4 mt-1 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-background shadow-lg"
               style={{
                 background: color,
               }}
             >
-              {collaborator.info.name}
+              {collaborator.presence.thinking ? (
+                <Loader2 aria-hidden="true" className="h-3 w-3 animate-spin" />
+              ) : null}
+              <span>{collaborator.info.name}</span>
             </div>
           </div>
         );
@@ -936,44 +945,42 @@ function RemoteCursors() {
 }
 
 function AiStatusFeed() {
-  const messages = useStorage((storage) => storage.aiStatus ?? []);
-  const visibleMessages = messages.slice(-4).reverse() as AiStatusMessage[];
+  const latestMessage = useStorage((storage) =>
+    getLatestAiStatusMessage(storage[AI_STATUS_FEED_ID] ?? storage.aiStatus),
+  );
 
-  if (!visibleMessages.length) {
+  if (!latestMessage) {
     return null;
   }
 
   return (
-    <div className="pointer-events-none absolute left-5 top-5 z-10 w-[min(22rem,calc(100%-2.5rem))] space-y-2">
-      {visibleMessages.map((message) => (
-        <div
-          key={message.id}
-          className="rounded-2xl border border-surface-border bg-surface/95 px-4 py-3 text-sm leading-5 text-copy-primary shadow-2xl backdrop-blur"
-        >
-          <div className="flex items-start gap-3">
-            <span
-              className="mt-1 size-2 shrink-0 rounded-full"
-              style={{
-                background:
-                  message.kind === "error"
-                    ? "var(--color-error)"
-                    : message.kind === "success"
-                      ? "var(--color-success)"
-                      : "var(--accent-ai-text)",
-              }}
-            />
-            <div className="min-w-0">
-              <p className="font-medium text-copy-primary">{message.message}</p>
-              <p className="mt-1 text-xs text-copy-faint">
-                {new Date(message.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </p>
-            </div>
+    <div className="pointer-events-none absolute left-5 top-5 z-10 w-[min(22rem,calc(100%-2.5rem))]">
+      <div className="rounded-2xl border border-surface-border bg-surface/95 px-4 py-3 text-sm leading-5 text-copy-primary shadow-2xl backdrop-blur">
+        <div className="flex items-start gap-3">
+          <span
+            className="mt-1 size-2 shrink-0 rounded-full"
+            style={{
+              background:
+                latestMessage.kind === "error"
+                  ? "var(--color-error)"
+                  : latestMessage.kind === "success"
+                    ? "var(--color-success)"
+                    : "var(--accent-ai-text)",
+            }}
+          />
+          <div className="min-w-0">
+            <p className="font-medium text-copy-primary">
+              {latestMessage.text || "Ghost AI updated its shared status."}
+            </p>
+            <p className="mt-1 text-xs text-copy-faint">
+              {new Date(latestMessage.createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
           </div>
         </div>
-      ))}
+      </div>
     </div>
   );
 }
@@ -1496,6 +1503,18 @@ function SyncedReactFlowCanvas({
   );
 }
 
+export function EditorRealtimeRoom({ roomId, children }: EditorRealtimeRoomProps) {
+  return (
+    <CanvasErrorBoundary>
+      <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
+        <RoomProvider id={roomId} initialPresence={{ cursor: null, thinking: false }}>
+          <ClientSideSuspense fallback={<CanvasLoadingState />}>{children}</ClientSideSuspense>
+        </RoomProvider>
+      </LiveblocksProvider>
+    </CanvasErrorBoundary>
+  );
+}
+
 export function EditorCanvas({
   roomId,
   isStarterTemplatesOpen,
@@ -1505,21 +1524,13 @@ export function EditorCanvas({
 }: EditorCanvasProps) {
   return (
     <div className="h-full w-full overflow-hidden rounded-2xl border border-surface-border bg-background shadow-2xl">
-      <CanvasErrorBoundary>
-        <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
-          <RoomProvider id={roomId} initialPresence={{ cursor: null, thinking: false }}>
-            <ClientSideSuspense fallback={<CanvasLoadingState />}>
-              <SyncedReactFlowCanvas
-                roomId={roomId}
-                isStarterTemplatesOpen={isStarterTemplatesOpen}
-                onStarterTemplatesOpenChange={onStarterTemplatesOpenChange}
-                saveRequestId={saveRequestId}
-                onSaveStatusChange={onSaveStatusChange}
-              />
-            </ClientSideSuspense>
-          </RoomProvider>
-        </LiveblocksProvider>
-      </CanvasErrorBoundary>
+      <SyncedReactFlowCanvas
+        roomId={roomId}
+        isStarterTemplatesOpen={isStarterTemplatesOpen}
+        onStarterTemplatesOpenChange={onStarterTemplatesOpenChange}
+        saveRequestId={saveRequestId}
+        onSaveStatusChange={onSaveStatusChange}
+      />
     </div>
   );
 }

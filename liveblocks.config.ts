@@ -1,6 +1,7 @@
 import type { LiveblocksFlow } from "@liveblocks/react-flow";
 
-import type { AiStatusMessage, CanvasEdge, CanvasNode } from "@/types/canvas";
+import type { CanvasEdge, CanvasNode } from "@/types/canvas";
+import type { AiStatusFeedMessage } from "@/types/tasks";
 
 declare global {
   interface Liveblocks {
@@ -14,7 +15,8 @@ declare global {
 
     Storage: {
       flow?: LiveblocksFlow<CanvasNode, CanvasEdge>;
-      aiStatus?: AiStatusMessage[];
+      "ai-status-feed"?: AiStatusFeedMessage[];
+      aiStatus?: AiStatusFeedMessage[];
     };
 
     UserMeta: {

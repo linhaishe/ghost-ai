@@ -1,12 +1,14 @@
 "use client";
 
-import { Bot, Download, FileText, Send, Sparkles, X } from "lucide-react";
+import { useOthers, useStorage } from "@liveblocks/react/suspense";
+import { Bot, Download, FileText, Loader2, Send, Sparkles, X } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { AI_STATUS_FEED_ID, getLatestAiStatusMessage } from "@/types/tasks";
 
 interface AiSidebarProps {
   isOpen: boolean;
@@ -53,12 +55,59 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
   );
 }
 
+function useIsAiGenerationActive() {
+  return useOthers((others) => others.some((other) => other.presence.thinking));
+}
+
+function useLatestAiStatusText() {
+  const latestMessage = useStorage((storage) =>
+    getLatestAiStatusMessage(storage[AI_STATUS_FEED_ID] ?? storage.aiStatus),
+  );
+
+  return latestMessage?.text || null;
+}
+
+function AiSharedStatus({
+  isActive,
+  statusText,
+}: {
+  isActive: boolean;
+  statusText: string | null;
+}) {
+  return (
+    <div className="rounded-2xl border border-surface-border bg-subtle/60 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <span
+          className={cn(
+            "flex size-2.5 shrink-0 rounded-full",
+            isActive ? "bg-ai-text shadow-[0_0_18px_rgba(106,77,255,0.65)]" : "bg-copy-faint",
+          )}
+        />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-text">
+            Ghost AI
+          </p>
+          <p className="mt-1 truncate text-sm text-copy-primary">
+            {isActive ? statusText ?? "Thinking through the canvas..." : statusText ?? "Ready"}
+          </p>
+        </div>
+        {isActive ? (
+          <Loader2 aria-hidden="true" className="ml-auto h-4 w-4 shrink-0 animate-spin text-ai-text" />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function AiArchitectTab({ roomId }: { roomId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [prompt, setPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const hasMessages = messages.length > 0;
+  const isGenerationActive = useIsAiGenerationActive();
+  const latestStatusText = useLatestAiStatusText();
+  const isChatInputDisabled = isSubmitting || isGenerationActive;
 
   const resizeTextarea = useCallback(() => {
     const textarea = textareaRef.current;
@@ -75,7 +124,7 @@ function AiArchitectTab({ roomId }: { roomId: string }) {
     async (value = prompt) => {
       const trimmedPrompt = value.trim();
 
-      if (!trimmedPrompt || isSubmitting) {
+      if (!trimmedPrompt || isChatInputDisabled) {
         return;
       }
 
@@ -145,20 +194,22 @@ function AiArchitectTab({ roomId }: { roomId: string }) {
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, prompt, roomId],
+    [isChatInputDisabled, prompt, roomId],
   );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+        <AiSharedStatus isActive={isGenerationActive} statusText={latestStatusText} />
+
         {hasMessages ? (
-          <div className="space-y-4">
+          <div className="mt-4 space-y-4">
             {[...DEMO_MESSAGES, ...messages].map((message) => (
               <ChatMessageBubble key={message.id} message={message} />
             ))}
           </div>
         ) : (
-          <div className="flex h-full min-h-80 flex-col items-center justify-center rounded-2xl border border-dashed border-surface-border bg-subtle/40 px-5 text-center">
+          <div className="mt-4 flex h-full min-h-80 flex-col items-center justify-center rounded-2xl border border-dashed border-surface-border bg-subtle/40 px-5 text-center">
             <div className="flex size-12 items-center justify-center rounded-2xl bg-ai/20 text-ai-text">
               <Bot className="h-6 w-6" />
             </div>
@@ -193,6 +244,7 @@ function AiArchitectTab({ roomId }: { roomId: string }) {
             ref={textareaRef}
             value={prompt}
             placeholder="Ask Ghost AI to design, critique, or refine this architecture..."
+            disabled={isChatInputDisabled}
             onChange={(event) => {
               setPrompt(event.target.value);
               resizeTextarea();
@@ -203,17 +255,21 @@ function AiArchitectTab({ roomId }: { roomId: string }) {
                 submitPrompt();
               }
             }}
-            className="max-h-40 min-h-[72px] resize-none border-0 bg-transparent px-1 py-1 text-sm leading-6 text-copy-primary shadow-none focus-visible:ring-0"
+            className="max-h-40 min-h-[72px] resize-none border-0 bg-transparent px-1 py-1 text-sm leading-6 text-copy-primary shadow-none disabled:cursor-not-allowed disabled:opacity-70 focus-visible:ring-0"
           />
           <div className="mt-3 flex justify-end">
             <Button
               type="button"
               className="bg-ai text-white hover:bg-ai/90"
               onClick={() => submitPrompt()}
-              disabled={!prompt.trim() || isSubmitting}
+              disabled={!prompt.trim() || isChatInputDisabled}
             >
-              <Send className="h-4 w-4" />
-              {isSubmitting ? "Sending" : "Send"}
+              {isChatInputDisabled ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              {isChatInputDisabled ? "Working" : "Send"}
             </Button>
           </div>
         </div>

@@ -12,12 +12,16 @@ import {
   DEFAULT_CANVAS_NODE_COLOR,
   DEFAULT_CANVAS_NODE_TEXT_COLOR,
   NODE_COLORS,
-  type AiStatusKind,
-  type AiStatusMessage,
   type CanvasEdge,
   type CanvasNode,
   type CanvasNodeShape,
 } from "@/types/canvas";
+import {
+  AI_STATUS_FEED_ID,
+  createAiStatusFeedMessage,
+  type AiStatusFeedKind,
+  type AiStatusFeedMessage,
+} from "@/types/tasks";
 
 export interface DesignAgentPayload {
   prompt: string;
@@ -251,28 +255,22 @@ function formatError(error: unknown) {
   return error instanceof Error ? error.message : "Unknown error";
 }
 
-function createStatusMessage(kind: AiStatusKind, message: string): AiStatusMessage {
-  return {
-    id: `ai-status-${Date.now()}-${crypto.randomUUID()}`,
-    kind,
-    message,
-    createdAt: new Date().toISOString(),
-  };
-}
-
 async function appendStatus(
   client: LiveblocksClient,
   roomId: string,
-  kind: AiStatusKind,
-  message: string,
+  kind: AiStatusFeedKind,
+  text: string,
 ) {
-  const statusMessage = createStatusMessage(kind, message);
+  const statusMessage = createAiStatusFeedMessage({ kind, text });
 
   await client.mutateStorage(roomId, ({ root }) => {
-    const current = root.get("aiStatus") ?? [];
+    const current =
+      (root.get(AI_STATUS_FEED_ID) as AiStatusFeedMessage[] | undefined) ??
+      (root.get("aiStatus") as AiStatusFeedMessage[] | undefined) ??
+      [];
     const nextMessages = [...current, statusMessage].slice(-MAX_STATUS_MESSAGES);
 
-    root.set("aiStatus", nextMessages);
+    root.set(AI_STATUS_FEED_ID, nextMessages);
   });
 }
 

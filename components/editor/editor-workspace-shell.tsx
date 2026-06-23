@@ -4,7 +4,7 @@ import { Bot, Download, Save, Share2 } from "lucide-react";
 import { useState } from "react";
 
 import { AiSidebar } from "@/components/editor/ai-sidebar";
-import { EditorCanvas } from "@/components/editor/editor-canvas";
+import { EditorCanvas, EditorRealtimeRoom } from "@/components/editor/editor-canvas";
 import { EditorNavbar } from "@/components/editor/editor-navbar";
 import { ProjectDialogs } from "@/components/editor/project-dialogs";
 import { ProjectSidebar } from "@/components/editor/project-sidebar";
@@ -99,19 +99,21 @@ export function EditorWorkspaceShell({
       />
 
       <main className="relative min-h-0 flex-1 overflow-hidden bg-base p-4">
-        <EditorCanvas
-          roomId={roomId}
-          isStarterTemplatesOpen={isStarterTemplatesOpen}
-          onStarterTemplatesOpenChange={setIsStarterTemplatesOpen}
-          saveRequestId={saveRequestId}
-          onSaveStatusChange={setSaveStatus}
-        />
+        <EditorRealtimeRoom roomId={roomId}>
+          <EditorCanvas
+            roomId={roomId}
+            isStarterTemplatesOpen={isStarterTemplatesOpen}
+            onStarterTemplatesOpenChange={setIsStarterTemplatesOpen}
+            saveRequestId={saveRequestId}
+            onSaveStatusChange={setSaveStatus}
+          />
 
-        <AiSidebar
-          isOpen={isAiSidebarOpen}
-          roomId={roomId}
-          onClose={() => setIsAiSidebarOpen(false)}
-        />
+          <AiSidebar
+            isOpen={isAiSidebarOpen}
+            roomId={roomId}
+            onClose={() => setIsAiSidebarOpen(false)}
+          />
+        </EditorRealtimeRoom>
       </main>
 
       <ProjectDialogs

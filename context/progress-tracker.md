@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 23 (Design Agent Logic) — complete
+- Feature 24 (AI Presence State) — complete
 
 ## Current Goal
 
-- Feature 23 is complete: the Trigger.dev design agent interprets prompts with Gemini, mutates the existing Liveblocks React Flow canvas, and surfaces AI status/presence.
+- Feature 24 is complete: AI activity is visible through shared Liveblocks presence and the validated `ai-status-feed`, with sidebar status/input states and cursor thinking indicators.
 
 ## Completed
 
@@ -35,6 +35,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 21 (22/06/26): Canvas Autosave — `@vercel/blob` installed, existing `Project.canvasJsonPath` reused for the saved canvas blob URL, `GET`/`PUT /api/projects/[projectId]/canvas` added for loading and saving canvas JSON through Vercel Blob, debounced `useCanvasAutosave` hook added with `saving`/`saved`/`error` state, editor loads saved canvas only when the Liveblocks room is empty, and the workspace Save button displays save status plus manual save. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 22 (23/06/26): Design Agent API — `POST /api/ai/design` added to validate prompt/project/room context, enforce existing project access, trigger the minimal Trigger.dev design task, create a `TaskRun` record, and return the run ID; `TaskRun` Prisma model and migration added with run ownership indexes; `POST /api/ai/design/token` added to verify run ownership and return a Trigger.dev public token scoped to that run; `.trigger/**` excluded from ESLint generated-cache scanning. `npx prisma format`, `npx prisma validate`, `npx prisma migrate dev --name add_task_runs`, `npx prisma generate`, `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 23 (23/06/26): Design Agent Logic — `trigger/design-agent.ts` now uses Gemini through `@ai-sdk/google` and AI SDK structured output to plan canvas actions, applies add/move/resize/update/delete node and add/delete edge actions through `@liveblocks/react-flow/node` `mutateFlow`, validates generated shapes/colors/sizes against existing canvas constants, publishes Liveblocks-backed AI status messages, sets and clears AI presence with cursor/thinking state, and handles failures with status updates. AI sidebar prompt submission now starts the design API, and the canvas renders the shared AI status feed. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 24 (23/06/26): AI Presence State — `types/tasks.ts` added with `ai-status-feed` payload helpers and validation, Liveblocks Storage now includes the named AI status feed, the AI sidebar subscribes to the latest validated status and disables only the chat input/send button while shared generation is active, the Liveblocks room provider wraps both canvas and sidebar, canvas status display shows only the latest message, and remote cursor badges show a spinner when `presence.thinking` is true. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -42,7 +43,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Feature 24 spec when ready.
+- Feature 25 spec when ready.
 
 ## Open Questions
 
@@ -89,7 +90,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - `/api/liveblocks-auth` uses the project ID as the room ID, trusts `lib/project-access.ts` for authorization, creates missing rooms with private default access, and issues a room-scoped token via `prepareSession`.
 - Canvas types live in `types/canvas.ts`; the base node data shape supports label, color, and shape, with `canvasNode`/`canvasEdge` reserved as the custom type names.
 - Liveblocks Storage includes an optional React Flow `flow` object because `useLiveblocksFlow` initializes it only when missing.
-- `EditorCanvas` owns the client-only Liveblocks provider, room provider, suspense loading state, connection error fallback, and React Flow wiring.
+- `EditorRealtimeRoom` owns the client-only Liveblocks provider, room provider, suspense loading state, and connection error fallback so the editor canvas and AI sidebar share one room connection.
 - React Flow package CSS is imported from the root layout as a global external stylesheet.
 - Shape drag payloads use `application/ghost-ai-canvas-shape` and include both shape name and default size.
 - Shape defaults and canvas node constants live in `types/canvas.ts` so drag payload creation and node creation share the same source of truth.
@@ -118,7 +119,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Cursor positions are stored as canvas-viewport coordinates so remote cursor overlays can render without depending on React Flow node/edge state.
 - AI sidebar UI lives in `components/editor/ai-sidebar.tsx`; `EditorWorkspaceShell` continues to own open/close state and only passes control props.
 - Feature-specific token aliases `primary-text`, `muted-text`, and `accent-text` map to existing project CSS variables in `app/globals.css`.
-- AI sidebar remains UI-only for now; prompt submission updates local demo messages and does not call backend, Liveblocks, or AI services.
+- AI sidebar lives in the shared Liveblocks room context so it can render shared AI status/presence while preserving parent-owned open/close state.
 - Canvas persistence reuses `Project.canvasJsonPath` as the Vercel Blob URL field; Prisma remains metadata-only while Blob stores the actual canvas JSON.
 - Canvas save/load routes live under `app/api/projects/[projectId]/canvas` and enforce existing owner/collaborator access checks before reading or writing canvas data.
 - Autosave is client-side and debounced in `hooks/use-canvas-autosave.ts`; manual saves reuse the same API path and status state.
@@ -129,11 +130,21 @@ Update this file whenever the current phase, active feature, or implementation s
 - Run-scoped Trigger.dev public tokens are issued through `auth.createPublicToken` with `read.runs` limited to the requested run ID.
 - AI design generation uses Gemini via `@ai-sdk/google` inside the Trigger.dev task; `GEMINI_API_KEY` is read directly when creating the provider instance.
 - AI canvas mutations use `@liveblocks/react-flow/node` `mutateFlow`, preserving the existing Liveblocks React Flow storage shape and avoiding direct custom graph state.
-- AI status messages live in Liveblocks Storage as `aiStatus`, while the AI collaborator presence is published with Liveblocks node `setPresence` using the same `cursor` and `thinking` presence shape as human users.
+- AI status messages live in Liveblocks Storage under the named `ai-status-feed`, with legacy `aiStatus` reads kept only for existing-room compatibility; the AI collaborator presence is published with Liveblocks node `setPresence` using the same `cursor` and `thinking` presence shape as human users.
 - AI generated canvas actions are normalized server-side against existing `CANVAS_SHAPE_DEFAULT_SIZES`, `NODE_COLORS`, `CANVAS_NODE_TYPE`, and `CANVAS_EDGE_TYPE` constants before being applied.
+- Shared AI task/feed payload validation lives in `types/tasks.ts`; UI surfaces parse incoming feed messages before display and show only the latest valid status.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/24-ai-presence-state.md`.
+- Read the AI presence state spec and confirmed scope is shared UI/status signaling only, without adding another generation flow.
+- Read the Liveblocks best-practices skill plus AI collaborator, presence, storage selector, and typing references; implementation should reuse room presence and typed Liveblocks Storage instead of parallel realtime state.
+- Added `types/tasks.ts` with the `ai-status-feed` ID, feed kind typing, message creation, and incoming-message validation helpers.
+- Moved the Liveblocks provider boundary to `EditorRealtimeRoom` so `EditorCanvas` and `AiSidebar` share the same room subscription.
+- Updated the Trigger.dev design agent to write statuses to `ai-status-feed` while reading legacy `aiStatus` as a migration fallback.
+- Updated the AI sidebar to subscribe to the latest validated feed message, show a shared activity indicator, disable only the chat input/send button while generation is active, and show a loading send state.
+- Updated canvas status display to show only the latest validated feed message and added cursor badge spinners for collaborators with `presence.thinking`.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/23-design-agent-logic.md`.
 - Read the design agent logic spec and confirmed scope is full backend AI task execution against the existing Liveblocks React Flow room, without changing canvas architecture or introducing a separate state system.
 - Read `context/project-overview.md` and `context/architecture-context.md`; design generation should run as a durable Trigger.dev task and write structured nodes/edges into the shared Liveblocks room.
