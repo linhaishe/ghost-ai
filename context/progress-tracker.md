@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 24 (AI Presence State) — complete
+- Feature 25 (Sidebar Chat Feed) — complete
 
 ## Current Goal
 
-- Feature 24 is complete: AI activity is visible through shared Liveblocks presence and the validated `ai-status-feed`, with sidebar status/input states and cursor thinking indicators.
+- Feature 25 is complete: the AI sidebar now uses a separate room-scoped Liveblocks `ai-chat` feed with validated sender, role, content, and timestamp payloads.
 
 ## Completed
 
@@ -36,6 +36,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 22 (23/06/26): Design Agent API — `POST /api/ai/design` added to validate prompt/project/room context, enforce existing project access, trigger the minimal Trigger.dev design task, create a `TaskRun` record, and return the run ID; `TaskRun` Prisma model and migration added with run ownership indexes; `POST /api/ai/design/token` added to verify run ownership and return a Trigger.dev public token scoped to that run; `.trigger/**` excluded from ESLint generated-cache scanning. `npx prisma format`, `npx prisma validate`, `npx prisma migrate dev --name add_task_runs`, `npx prisma generate`, `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 23 (23/06/26): Design Agent Logic — `trigger/design-agent.ts` now uses Gemini through `@ai-sdk/google` and AI SDK structured output to plan canvas actions, applies add/move/resize/update/delete node and add/delete edge actions through `@liveblocks/react-flow/node` `mutateFlow`, validates generated shapes/colors/sizes against existing canvas constants, publishes Liveblocks-backed AI status messages, sets and clears AI presence with cursor/thinking state, and handles failures with status updates. AI sidebar prompt submission now starts the design API, and the canvas renders the shared AI status feed. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 24 (23/06/26): AI Presence State — `types/tasks.ts` added with `ai-status-feed` payload helpers and validation, Liveblocks Storage now includes the named AI status feed, the AI sidebar subscribes to the latest validated status and disables only the chat input/send button while shared generation is active, the Liveblocks room provider wraps both canvas and sidebar, canvas status display shows only the latest message, and remote cursor badges show a spinner when `presence.thinking` is true. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 25 (23/06/26): Sidebar Chat Feed — `ai-chat` added as a separate Liveblocks Storage feed, `types/tasks.ts` now defines Zod-validated chat message payloads with sender, role, content, and timestamp, AI sidebar renders validated room chat messages in order with sender/time/content, the existing sidebar input sends user messages to `ai-chat` without triggering backend AI tasks, and send failures show a small inline error. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -43,7 +44,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Feature 25 spec when ready.
+- Feature 26 spec when ready.
 
 ## Open Questions
 
@@ -133,9 +134,19 @@ Update this file whenever the current phase, active feature, or implementation s
 - AI status messages live in Liveblocks Storage under the named `ai-status-feed`, with legacy `aiStatus` reads kept only for existing-room compatibility; the AI collaborator presence is published with Liveblocks node `setPresence` using the same `cursor` and `thinking` presence shape as human users.
 - AI generated canvas actions are normalized server-side against existing `CANVAS_SHAPE_DEFAULT_SIZES`, `NODE_COLORS`, `CANVAS_NODE_TYPE`, and `CANVAS_EDGE_TYPE` constants before being applied.
 - Shared AI task/feed payload validation lives in `types/tasks.ts`; UI surfaces parse incoming feed messages before display and show only the latest valid status.
+- Sidebar collaborative chat uses a separate room-scoped Liveblocks Storage feed named `ai-chat`; it is intentionally independent from `ai-status-feed` and does not trigger AI generation.
+- Chat feed messages are validated with Zod in `types/tasks.ts` before rendering; the message shape contains sender metadata, role, content, and timestamp.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/25-sidebar-chat-feed.md`.
+- Read the sidebar chat feed spec and confirmed scope is collaborative room chat only: no AI replies, no backend task trigger, and no mixing with `ai-status-feed`.
+- Re-read the Liveblocks best-practices skill plus storage selector and typing references; chat should use the existing room-scoped Liveblocks Storage pattern.
+- Added `ai-chat` to typed Liveblocks Storage and added Zod schemas/helpers for chat feed messages in `types/tasks.ts`.
+- Updated the AI sidebar chat area to subscribe to validated `ai-chat` messages and render sender, timestamp, and content in chronological order.
+- Replaced sidebar send behavior with a Liveblocks `useMutation` write to `ai-chat`, clearing the textarea on success and showing an inline error on failure.
+- Added `zod` as an explicit project dependency because chat feed validation imports it directly from app code.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/24-ai-presence-state.md`.
 - Read the AI presence state spec and confirmed scope is shared UI/status signaling only, without adding another generation flow.
 - Read the Liveblocks best-practices skill plus AI collaborator, presence, storage selector, and typing references; implementation should reuse room presence and typed Liveblocks Storage instead of parallel realtime state.

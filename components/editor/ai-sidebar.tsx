@@ -1,25 +1,25 @@
 "use client";
 
-import { useOthers, useStorage } from "@liveblocks/react/suspense";
+import { useMutation, useOthers, useSelf, useStorage } from "@liveblocks/react/suspense";
 import { Bot, Download, FileText, Loader2, Send, Sparkles, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { AI_STATUS_FEED_ID, getLatestAiStatusMessage } from "@/types/tasks";
+import {
+  AI_CHAT_FEED_ID,
+  AI_STATUS_FEED_ID,
+  createAiChatFeedMessage,
+  getLatestAiStatusMessage,
+  getValidAiChatMessages,
+  type AiChatFeedMessage,
+} from "@/types/tasks";
 
 interface AiSidebarProps {
   isOpen: boolean;
-  roomId: string;
   onClose: () => void;
-}
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
 }
 
 const STARTER_PROMPTS = [
@@ -28,28 +28,40 @@ const STARTER_PROMPTS = [
   "Build a CI/CD pipeline",
 ] as const;
 
-const DEMO_MESSAGES: ChatMessage[] = [
-  {
-    id: "assistant-welcome",
-    role: "assistant",
-    content: "Tell me what you want to design, and I’ll help shape it into an architecture.",
-  },
-];
+const MAX_CHAT_MESSAGES = 100;
 
-function ChatMessageBubble({ message }: { message: ChatMessage }) {
-  const isUser = message.role === "user";
+function formatMessageTime(timestamp: string) {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function ChatMessageBubble({
+  message,
+  currentUserId,
+}: {
+  message: AiChatFeedMessage;
+  currentUserId: string;
+}) {
+  const isCurrentUser = message.sender.id === currentUserId;
 
   return (
-    <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("flex", isCurrentUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
           "max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 shadow-lg",
-          isUser
+          isCurrentUser
             ? "border-2 border-brand/50 bg-brand/15 text-copy-primary"
             : "border border-surface-border bg-elevated text-accent-text",
         )}
       >
-        {message.content}
+        <div className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-copy-faint">
+          <span className="truncate">{isCurrentUser ? "You" : message.sender.name}</span>
+          <span aria-hidden="true">/</span>
+          <time dateTime={message.timestamp}>{formatMessageTime(message.timestamp)}</time>
+        </div>
+        <p className="whitespace-pre-wrap break-words">{message.content}</p>
       </div>
     </div>
   );
@@ -99,15 +111,45 @@ function AiSharedStatus({
   );
 }
 
-function AiArchitectTab({ roomId }: { roomId: string }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+function AiArchitectTab() {
   const [prompt, setPrompt] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const hasMessages = messages.length > 0;
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const self = useSelf();
+  const chatMessages = useStorage((storage) =>
+    getValidAiChatMessages(storage[AI_CHAT_FEED_ID]),
+  );
+  const hasMessages = chatMessages.length > 0;
   const isGenerationActive = useIsAiGenerationActive();
   const latestStatusText = useLatestAiStatusText();
-  const isChatInputDisabled = isSubmitting || isGenerationActive;
+  const isChatInputDisabled = isSending || isGenerationActive;
+  const sendChatMessage = useMutation(
+    ({ storage, self: roomSelf }, content: string) => {
+      const trimmedContent = content.trim();
+
+      if (!trimmedContent) {
+        return;
+      }
+
+      const message = createAiChatFeedMessage({
+        role: "user",
+        content: trimmedContent,
+        sender: {
+          id: roomSelf.id,
+          name: roomSelf.info.name,
+          avatarUrl: roomSelf.info.avatarUrl,
+          color: roomSelf.info.cursorColor,
+        },
+      });
+      const currentMessages = storage.get(AI_CHAT_FEED_ID) ?? [];
+      const nextMessages = [...currentMessages, message].slice(-MAX_CHAT_MESSAGES);
+
+      storage.set(AI_CHAT_FEED_ID, nextMessages);
+    },
+    [],
+  );
 
   const resizeTextarea = useCallback(() => {
     const textarea = textareaRef.current;
@@ -120,81 +162,36 @@ function AiArchitectTab({ roomId }: { roomId: string }) {
     textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
   }, []);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: "end" });
+  }, [chatMessages.length]);
+
   const submitPrompt = useCallback(
-    async (value = prompt) => {
+    (value = prompt) => {
       const trimmedPrompt = value.trim();
 
       if (!trimmedPrompt || isChatInputDisabled) {
         return;
       }
 
-      const timestamp = Date.now();
-
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        {
-          id: `user-${timestamp}`,
-          role: "user",
-          content: trimmedPrompt,
-        },
-        {
-          id: `assistant-${timestamp}`,
-          role: "assistant",
-          content: "I’m starting the design task now. Watch the shared canvas for live updates.",
-        },
-      ]);
-      setPrompt("");
-      setIsSubmitting(true);
-
-      window.requestAnimationFrame(() => {
-        if (textareaRef.current) {
-          textareaRef.current.style.height = "72px";
-        }
-      });
+      setIsSending(true);
+      setSendError(null);
 
       try {
-        const response = await fetch("/api/ai/design", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt: trimmedPrompt,
-            projectId: roomId,
-            roomId,
-          }),
+        sendChatMessage(trimmedPrompt);
+        setPrompt("");
+        window.requestAnimationFrame(() => {
+          if (textareaRef.current) {
+            textareaRef.current.style.height = "72px";
+          }
         });
-
-        if (!response.ok) {
-          throw new Error("Design task could not be started.");
-        }
-
-        const payload = (await response.json()) as { runId?: string };
-
-        setMessages((currentMessages) => [
-          ...currentMessages,
-          {
-            id: `assistant-run-${Date.now()}`,
-            role: "assistant",
-            content: payload.runId
-              ? `Task started: ${payload.runId}`
-              : "Task started. I’ll update the shared canvas as it runs.",
-          },
-        ]);
       } catch {
-        setMessages((currentMessages) => [
-          ...currentMessages,
-          {
-            id: `assistant-error-${Date.now()}`,
-            role: "assistant",
-            content: "I couldn’t start the design task. Please try again.",
-          },
-        ]);
+        setSendError("Message could not be sent. Please try again.");
       } finally {
-        setIsSubmitting(false);
+        setIsSending(false);
       }
     },
-    [isChatInputDisabled, prompt, roomId],
+    [isChatInputDisabled, prompt, sendChatMessage],
   );
 
   return (
@@ -204,9 +201,10 @@ function AiArchitectTab({ roomId }: { roomId: string }) {
 
         {hasMessages ? (
           <div className="mt-4 space-y-4">
-            {[...DEMO_MESSAGES, ...messages].map((message) => (
-              <ChatMessageBubble key={message.id} message={message} />
+            {chatMessages.map((message) => (
+              <ChatMessageBubble key={message.id} message={message} currentUserId={self.id} />
             ))}
+            <div ref={messagesEndRef} />
           </div>
         ) : (
           <div className="mt-4 flex h-full min-h-80 flex-col items-center justify-center rounded-2xl border border-dashed border-surface-border bg-subtle/40 px-5 text-center">
@@ -214,10 +212,10 @@ function AiArchitectTab({ roomId }: { roomId: string }) {
               <Bot className="h-6 w-6" />
             </div>
             <h3 className="mt-5 text-base font-semibold text-primary-text">
-              Start with a prompt
+              Start room chat
             </h3>
             <p className="mt-2 max-w-xs text-sm leading-6 text-muted-text">
-              Describe the system you want to design and Ghost AI will help shape the workspace.
+              Start a room chat with collaborators. AI replies are not enabled yet.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               {STARTER_PROMPTS.map((starterPrompt) => (
@@ -243,7 +241,7 @@ function AiArchitectTab({ roomId }: { roomId: string }) {
           <Textarea
             ref={textareaRef}
             value={prompt}
-            placeholder="Ask Ghost AI to design, critique, or refine this architecture..."
+            placeholder="Send a message to this workspace..."
             disabled={isChatInputDisabled}
             onChange={(event) => {
               setPrompt(event.target.value);
@@ -269,9 +267,10 @@ function AiArchitectTab({ roomId }: { roomId: string }) {
               ) : (
                 <Send className="h-4 w-4" />
               )}
-              {isChatInputDisabled ? "Working" : "Send"}
+              {isSending ? "Sending" : isGenerationActive ? "Working" : "Send"}
             </Button>
           </div>
+          {sendError ? <p className="mt-3 text-xs text-error">{sendError}</p> : null}
         </div>
       </div>
     </div>
@@ -316,7 +315,7 @@ function SpecsTab() {
   );
 }
 
-export function AiSidebar({ isOpen, roomId, onClose }: AiSidebarProps) {
+export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
   return (
     <aside
       className={cn(
@@ -365,7 +364,7 @@ export function AiSidebar({ isOpen, roomId, onClose }: AiSidebarProps) {
         </div>
 
         <TabsContent value="architect" className="min-h-0 data-inactive:hidden">
-          <AiArchitectTab roomId={roomId} />
+          <AiArchitectTab />
         </TabsContent>
         <TabsContent value="specs" className="min-h-0 data-inactive:hidden">
           <SpecsTab />

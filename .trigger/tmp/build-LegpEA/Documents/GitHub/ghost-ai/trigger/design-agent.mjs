@@ -70094,6 +70094,19 @@ var CANVAS_SHAPE_DEFAULT_SIZES = {
 // types/tasks.ts
 init_esm();
 var AI_STATUS_FEED_ID = "ai-status-feed";
+var aiChatSenderSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  avatarUrl: external_exports.string().nullable(),
+  color: external_exports.string().min(1)
+});
+var aiChatFeedMessageSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  sender: aiChatSenderSchema,
+  role: external_exports.enum(["user", "assistant"]),
+  content: external_exports.string().min(1),
+  timestamp: external_exports.string().min(1)
+});
 function createAiStatusFeedMessage({
   kind,
   text: text2
