@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Feature 26 (Design Agent Frontend) — complete
+- Feature 27 (Spec Generation Flow) — complete
 
 ## Current Goal
 
-- Feature 26 is complete: the AI sidebar submits prompts to the design agent, tracks Trigger.dev runs in realtime, and reflects results through Liveblocks chat/status feeds while canvas updates flow through Liveblocks.
+- Feature 27 is complete: backend spec generation flow now has `/api/ai/spec`, `/api/ai/spec/token`, the `generate-spec` Trigger.dev task, Zod validation, and TaskRun ownership tracking.
 
 ## Completed
 
@@ -38,6 +38,7 @@ Update this file whenever the current phase, active feature, or implementation s
 - Feature 24 (23/06/26): AI Presence State — `types/tasks.ts` added with `ai-status-feed` payload helpers and validation, Liveblocks Storage now includes the named AI status feed, the AI sidebar subscribes to the latest validated status and disables only the chat input/send button while shared generation is active, the Liveblocks room provider wraps both canvas and sidebar, canvas status display shows only the latest message, and remote cursor badges show a spinner when `presence.thinking` is true. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 25 (23/06/26): Sidebar Chat Feed — `ai-chat` added as a separate Liveblocks Storage feed, `types/tasks.ts` now defines Zod-validated chat message payloads with sender, role, content, and timestamp, AI sidebar renders validated room chat messages in order with sender/time/content, the existing sidebar input sends user messages to `ai-chat` without triggering backend AI tasks, and send failures show a small inline error. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 - Feature 26 (23/06/26): Design Agent Frontend — AI sidebar prompt submission now writes the user message to `ai-chat`, calls `POST /api/ai/design` with the active room ID, stores returned `runId`/`publicToken`, tracks the run with `useRealtimeRun`, disables input and shows a compact status strip only while the run is active, writes final success/error AI messages back to `ai-chat`, and relies on Liveblocks React Flow for realtime canvas updates. `/api/ai/design` now returns a run-scoped public token with the run ID. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
+- Feature 27 (23/06/26): Spec Generation Flow — `POST /api/ai/spec` added with Zod validation for `roomId`, `chatHistory`, `nodes`, and `edges`, room-derived project access checks, `generate-spec` Trigger.dev task triggering, and TaskRun persistence; `POST /api/ai/spec/token` added with run-owner verification and 1-hour run-scoped public token issuance; `trigger/generate-spec.ts` added to validate payloads, generate Markdown technical specs with Gemini, update Trigger.dev run metadata, and return generated content as task output without storing the final spec. `npm run lint`, `npx tsc --noEmit`, and `npm run build` pass.
 
 ## In Progress
 
@@ -45,7 +46,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Feature 27 spec when ready.
+- Feature 28 spec when ready.
 
 ## Open Questions
 
@@ -139,9 +140,19 @@ Update this file whenever the current phase, active feature, or implementation s
 - Chat feed messages are validated with Zod in `types/tasks.ts` before rendering; the message shape contains sender metadata, role, content, and timestamp.
 - AI sidebar submit first records the user prompt in `ai-chat`, then starts the design agent run through `/api/ai/design`; canvas changes are never manually mirrored by the sidebar and arrive through the existing Liveblocks React Flow room.
 - Trigger.dev realtime run subscriptions use the run-scoped `publicToken` returned by `/api/ai/design`; final frontend status is written as an assistant message into `ai-chat`.
+- Spec generation backend starts from `roomId` as the trusted project identifier; client-supplied project IDs are ignored for access control.
+- Spec generation output remains plain Markdown task output for now; persistence to Blob/database is deferred to a later feature.
 
 ## Session Notes
 
+- Started implementation of `context/feature-specs/27-spec-generation-flow.md`.
+- Read the spec generation flow spec and confirmed scope is backend-only: no frontend logic, no spec editor UI, and no final spec persistence in this unit.
+- Read `context/project-overview.md` and `context/architecture-context.md`; spec generation should be a durable Trigger.dev workflow that returns Markdown from canvas/chat context.
+- Read the local Next route handler docs and Prisma client skill reference before adding API routes and TaskRun persistence.
+- Added `trigger/generate-spec.ts` with shared Zod request/payload schemas, Gemini Markdown generation, Trigger.dev metadata progress/status updates, and task output containing the generated Markdown content.
+- Added `POST /api/ai/spec`, deriving project access from authenticated user plus `roomId`, triggering `generate-spec`, saving the run in `TaskRun`, and returning the Trigger run ID.
+- Added `POST /api/ai/spec/token`, verifying `TaskRun.userId` ownership before issuing a 1-hour public token scoped to the requested run.
+- Verification: `npm run lint` passes; `npx tsc --noEmit` passes; `npm run build` passes.
 - Started implementation of `context/feature-specs/26-design-agent-frontend.md`.
 - Read the design agent frontend spec and confirmed scope is frontend wiring only: no backend task changes, no manual canvas state sync, and no graph data fetching.
 - Checked the existing AI sidebar, `ai-chat`/`ai-status-feed` helpers, `/api/ai/design`, `/api/ai/design/token`, and Trigger.dev `useRealtimeRun` hook types.

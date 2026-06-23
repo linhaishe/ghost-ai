@@ -1,0 +1,30 @@
+{
+  "configPath": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-RzKUTc/Documents/GitHub/ghost-ai/trigger.config.mjs",
+  "customConditions": [
+  ],
+  "prompts": [
+  ],
+  "queues": [
+  ],
+  "runtime": "node",
+  "runtimeVersion": "22.19.0",
+  "tasks": [
+    {
+      "entryPoint": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-RzKUTc/Documents/GitHub/ghost-ai/trigger/design-agent.mjs",
+      "filePath": "trigger/design-agent.ts",
+      "id": "design-agent",
+      "maxDuration": 300
+    },
+    {
+      "entryPoint": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-RzKUTc/Documents/GitHub/ghost-ai/trigger/generate-spec.mjs",
+      "filePath": "trigger/generate-spec.ts",
+      "id": "generate-spec",
+      "maxDuration": 300
+    }
+  ],
+  "timings": {
+    "trigger/design-agent.ts": 38.27591700000002,
+    "trigger/generate-spec.ts": 1.0722079999999892
+  },
+  "workerEntryPoint": "/Users/chenruo/Documents/GitHub/ghost-ai/.trigger/tmp/build-RzKUTc/.npm/_npx/f51a09bd0abf5f10/node_modules/trigger.dev/dist/esm/entryPoints/dev-run-worker.mjs"
+}
